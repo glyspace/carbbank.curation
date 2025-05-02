@@ -1,0 +1,9 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5436/postgres
+    username: glygen
+    password: ENC(Y28YsnugTP2zFhN68Z12aHtODjqpm42tNcQ7WfJo/BI=)
+    driver-class-name: org.postgresql.Driver
+    separator: ^^^ END OF SCRIPT ^^^
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect

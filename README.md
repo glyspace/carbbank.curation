@@ -1,4 +1,3 @@
-
 This is a spring boot application to parse carbbank.txt file and generata/save the data in a postgres database.
 
 Postgres database is expected to run at localhost:5436
@@ -55,6 +54,6 @@ There are separate tables with a foreign key to the main table for the following
 - PA
 - PM
 - SC
-  - ST
-  - TN
-  - VR
+- ST
+- TN
+- VR

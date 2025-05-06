@@ -10,5 +10,5 @@ public interface PMRepository extends JpaRepository<PM, Long> {
 	@Query("SELECT DISTINCT lower(a.value) FROM PM a")
 	List<String> findDistinctValue();
 	
-	long countByValue (String name);
+	long countByValueIgnoreCase (String name);
 }

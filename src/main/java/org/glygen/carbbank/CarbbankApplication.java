@@ -36,6 +36,7 @@ public class CarbbankApplication {
 	    		try {
 	    			List<Map<String, String>> records = CarbbankUtil.parseFile(carbbankFile.get(0));
 	    			service.saveRecords(records);
+	    			service.createMappingTables();
 				} catch (IOException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();

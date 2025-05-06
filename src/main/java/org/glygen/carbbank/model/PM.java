@@ -5,8 +5,10 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.SequenceGenerator;
 
 @Entity
 public class PM {
@@ -32,7 +34,9 @@ public class PM {
 	}
 	
 	@Id
-	@GeneratedValue
+	@GeneratedValue(strategy=GenerationType.SEQUENCE, generator="carbbank_seq")
+	//@GeneratedValue(strategy=GenerationType.SEQUENCE, generator="pm_seq")
+    //@SequenceGenerator(name="pm_seq", sequenceName="carbbank.pm_seq", initialValue=1)
 	public Long getId() {
 		return id;
 	}

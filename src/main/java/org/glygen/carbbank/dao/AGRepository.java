@@ -10,5 +10,5 @@ public interface AGRepository extends JpaRepository<AG, Long> {
 	@Query("SELECT DISTINCT lower(a.value) FROM AG a")
 	List<String> findDistinctValue();
 	
-	long countByValue (String name);
+	long countByValueIgnoreCase (String name);
 }

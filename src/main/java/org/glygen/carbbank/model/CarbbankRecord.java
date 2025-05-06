@@ -6,8 +6,10 @@ import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.SequenceGenerator;
 
 @Entity
 public class CarbbankRecord {
@@ -42,7 +44,8 @@ public class CarbbankRecord {
 	Collection<VR> vrList;
 	
 	@Id
-    @GeneratedValue
+	@GeneratedValue(strategy=GenerationType.SEQUENCE, generator="carbbank_seq")
+    @SequenceGenerator(name="carbbank_seq", sequenceName="carbbank.carbbank_seq", initialValue=1)
 	public Long getId() {
 		return id;
 	}

@@ -10,5 +10,5 @@ public interface ANRepository extends JpaRepository<AN, Long> {
 	@Query("SELECT DISTINCT lower(a.value) FROM AN a")
 	List<String> findDistinctValue();
 	
-	long countByValue (String name);
+	long countByValueIgnoreCase (String name);
 }

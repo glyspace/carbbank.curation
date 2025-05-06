@@ -10,6 +10,5 @@ public interface AMRepository extends JpaRepository<AM, Long> {
 	@Query("SELECT DISTINCT lower(a.value) FROM AM a")
 	List<String> findDistinctValue();
 	
-	long countByValue (String name);
-
+	long countByValueIgnoreCase (String name);
 }

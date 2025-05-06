@@ -1,6 +1,7 @@
 package org.glygen.carbbank.service;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -11,6 +12,7 @@ import org.glygen.carbbank.dao.AGRepository;
 import org.glygen.carbbank.dao.AMRepository;
 import org.glygen.carbbank.dao.ANRepository;
 import org.glygen.carbbank.dao.BARepository;
+import org.glygen.carbbank.dao.BSRepository;
 import org.glygen.carbbank.dao.CarbbankRepository;
 import org.glygen.carbbank.dao.DBRepository;
 import org.glygen.carbbank.dao.MTRepository;
@@ -18,10 +20,24 @@ import org.glygen.carbbank.dao.MappingAGRepository;
 import org.glygen.carbbank.dao.MappingAMRepository;
 import org.glygen.carbbank.dao.MappingANRepository;
 import org.glygen.carbbank.dao.MappingBARepository;
+import org.glygen.carbbank.dao.MappingBSRepository;
+import org.glygen.carbbank.dao.MappingCNRepository;
+import org.glygen.carbbank.dao.MappingCRepository;
+import org.glygen.carbbank.dao.MappingCelllineRepository;
 import org.glygen.carbbank.dao.MappingDBRepository;
+import org.glygen.carbbank.dao.MappingDiseaseRepository;
+import org.glygen.carbbank.dao.MappingDomainRepository;
+import org.glygen.carbbank.dao.MappingFRepository;
+import org.glygen.carbbank.dao.MappingGSRepository;
+import org.glygen.carbbank.dao.MappingGTRepository;
+import org.glygen.carbbank.dao.MappingKRepository;
+import org.glygen.carbbank.dao.MappingLSRepository;
 import org.glygen.carbbank.dao.MappingMTRepository;
+import org.glygen.carbbank.dao.MappingORepository;
+import org.glygen.carbbank.dao.MappingOTRepository;
 import org.glygen.carbbank.dao.MappingPARepository;
 import org.glygen.carbbank.dao.MappingPMRepository;
+import org.glygen.carbbank.dao.MappingP_DRepository;
 import org.glygen.carbbank.dao.MappingTNRepository;
 import org.glygen.carbbank.dao.PARepository;
 import org.glygen.carbbank.dao.PMRepository;
@@ -47,10 +63,24 @@ import org.glygen.carbbank.model.mapping.MappingAG;
 import org.glygen.carbbank.model.mapping.MappingAM;
 import org.glygen.carbbank.model.mapping.MappingAN;
 import org.glygen.carbbank.model.mapping.MappingBA;
+import org.glygen.carbbank.model.mapping.MappingBS_BS;
+import org.glygen.carbbank.model.mapping.MappingBS_C;
+import org.glygen.carbbank.model.mapping.MappingCN;
+import org.glygen.carbbank.model.mapping.MappingCellLine;
 import org.glygen.carbbank.model.mapping.MappingDB;
+import org.glygen.carbbank.model.mapping.MappingDisease;
+import org.glygen.carbbank.model.mapping.MappingDomain;
+import org.glygen.carbbank.model.mapping.MappingF;
+import org.glygen.carbbank.model.mapping.MappingGS;
+import org.glygen.carbbank.model.mapping.MappingGT;
+import org.glygen.carbbank.model.mapping.MappingK;
+import org.glygen.carbbank.model.mapping.MappingLS;
 import org.glygen.carbbank.model.mapping.MappingMT;
+import org.glygen.carbbank.model.mapping.MappingO;
+import org.glygen.carbbank.model.mapping.MappingOT;
 import org.glygen.carbbank.model.mapping.MappingPA;
 import org.glygen.carbbank.model.mapping.MappingPM;
+import org.glygen.carbbank.model.mapping.MappingP_D;
 import org.glygen.carbbank.model.mapping.MappingTN;
 import org.glygen.carbbank.model.mapping.Publication;
 import org.slf4j.Logger;
@@ -62,6 +92,31 @@ import jakarta.transaction.Transactional;
 public class CarbbankService {
 	
 	static Logger logger = org.slf4j.LoggerFactory.getLogger(CarbbankService.class);
+	
+
+	String[] aminoAcids = {
+		    "alanine", "ala",
+		    "arginine", "arg",
+		    "asparagine", "asn",
+		    "aspartic acid", "asp",
+		    "cysteine", "cys",
+		    "glutamic acid", "glu",
+		    "glutamine", "gln",
+		    "glycine", "gly",
+		    "histidine", "his",
+		    "isoleucine", "ile",
+		    "leucine", "leu",
+		    "lysine", "lys",
+		    "methionine", "met",
+		    "phenylalanine", "phe",
+		    "proline", "pro",
+		    "serine", "ser",
+		    "threonine", "thr",
+		    "tryptophan", "trp",
+		    "tyrosine", "tyr",
+		    "valine", "val"
+	};
+
 	
 	final private CarbbankRepository carbbankRepository;
 	final private AGRepository agRepository;
@@ -83,6 +138,21 @@ public class CarbbankService {
 	final private DBRepository dbRepository;
 	final private MappingDBRepository mappingDBRepository;
 	final private PublicationRepository publicationRepository;
+	final private BSRepository bsRepository;
+	final private MappingBSRepository mappingBSRepository;
+	final private MappingCRepository mappingCRepository;
+	final private MappingCelllineRepository mappingCellineRepository;
+	final private MappingCNRepository mappingCNRepository;
+	final private MappingDiseaseRepository mappingDiseaseRepository;
+	final private MappingDomainRepository mappingDomainRepository;
+	final private MappingFRepository mappingFRepository;
+	final private MappingGSRepository mappingGSRepository;
+	final private MappingGTRepository mappingGTRepository;
+	final private MappingKRepository mappingKRepository;
+	final private MappingLSRepository mappingLSRepository;
+	final private MappingORepository mappingORepository;
+	final private MappingOTRepository mappingOTRepository;
+	final private MappingP_DRepository mappingP_DRepository;
 	
 	public CarbbankService(CarbbankRepository carbbankRepository, 
 			AGRepository agRepository, MappingAGRepository mappingAGRepository, 
@@ -94,7 +164,16 @@ public class CarbbankService {
 			MappingANRepository mappingANRepository, BARepository baRepository, 
 			ANRepository anRepository, PARepository paRepository, 
 			MappingPARepository mappingPARepository, MappingDBRepository mappingDBRepository, 
-			DBRepository dbRepository, PublicationRepository publicationRepository) {
+			DBRepository dbRepository, PublicationRepository publicationRepository, 
+			MappingKRepository mappingKRepository, MappingFRepository mappingFRepository, 
+			MappingP_DRepository mappingP_DRepository, 
+			MappingOTRepository mappingOTRepository, MappingORepository mappingORepository, 
+			MappingLSRepository mappingLSRepository, MappingGTRepository mappingGTRepository, 
+			MappingGSRepository mappingGSRepository, MappingDomainRepository mappingDomainRepository, 
+			MappingDiseaseRepository mappingDiseaseRepository, 
+			MappingCelllineRepository mappingCellineRepository, 
+			MappingCRepository mappingCRepository, MappingCNRepository mappingCNRepository, 
+			MappingBSRepository mappingBSRepository, BSRepository bsRepository) {
 		this.carbbankRepository = carbbankRepository;
 		this.agRepository = agRepository;
 		this.mappingAGRepository = mappingAGRepository;
@@ -115,6 +194,21 @@ public class CarbbankService {
 		this.dbRepository = dbRepository;
 		this.mappingDBRepository = mappingDBRepository;
 		this.publicationRepository = publicationRepository;
+		this.bsRepository = bsRepository;
+		this.mappingBSRepository = mappingBSRepository;
+		this.mappingCRepository = mappingCRepository;
+		this.mappingCellineRepository = mappingCellineRepository;
+		this.mappingCNRepository = mappingCNRepository;
+		this.mappingDiseaseRepository = mappingDiseaseRepository;
+		this.mappingDomainRepository = mappingDomainRepository;
+		this.mappingFRepository = mappingFRepository;
+		this.mappingGSRepository = mappingGSRepository;
+		this.mappingGTRepository = mappingGTRepository;
+		this.mappingKRepository = mappingKRepository;
+		this.mappingLSRepository = mappingLSRepository;
+		this.mappingORepository = mappingORepository;
+		this.mappingOTRepository = mappingOTRepository;
+		this.mappingP_DRepository = mappingP_DRepository;
 	}
 	
 	@Transactional
@@ -287,7 +381,7 @@ public class CarbbankService {
     				} else if (e.getKey().equalsIgnoreCase("c")) {
     					bs.setC(e.getValue());
     				} else if (e.getKey().equalsIgnoreCase("cell_line")) {
-    					bs.setCell_line(e.getValue());
+    					bs.setCellline(e.getValue());
     				} else if (e.getKey().equalsIgnoreCase("cn")) {
     					bs.setCn(e.getValue());
     				} else if (e.getKey().equalsIgnoreCase("disease")) {
@@ -311,7 +405,7 @@ public class CarbbankService {
     				} else if (e.getKey().equalsIgnoreCase("ot")) {
     					bs.setOt(e.getValue());
     				} else if (e.getKey().equalsIgnoreCase("p_d")) {
-    					bs.setP_d(e.getValue());
+    					bs.setPd(e.getValue());
     				} else if (e.getKey().equalsIgnoreCase("star")) {
     					bs.setStar(e.getValue());
     				}
@@ -329,7 +423,7 @@ public class CarbbankService {
 		if (c == 0) {
 			List<String> distinctValues = agRepository.findDistinctValue();
 			for (String name: distinctValues) {
-				long count = agRepository.countByValue(name);
+				long count = agRepository.countByValueIgnoreCase(name);
 				MappingAG mapping = new MappingAG();
 				mapping.setCount(Long.valueOf(count).intValue());
 				mapping.setName(name);
@@ -342,7 +436,7 @@ public class CarbbankService {
 		if (c == 0) {
 			List<String> distinctValues = amRepository.findDistinctValue();
 			for (String name: distinctValues) {
-				long count = amRepository.countByValue(name);
+				long count = amRepository.countByValueIgnoreCase(name);
 				MappingAM mapping = new MappingAM();
 				mapping.setCount(Long.valueOf(count).intValue());
 				mapping.setName(name);
@@ -355,7 +449,7 @@ public class CarbbankService {
 		if (c == 0) {
 			List<String> distinctValues = anRepository.findDistinctValue();
 			for (String name: distinctValues) {
-				long count = anRepository.countByValue(name);
+				long count = anRepository.countByValueIgnoreCase(name);
 				MappingAN mapping = new MappingAN();
 				mapping.setCount(Long.valueOf(count).intValue());
 				mapping.setName(name);
@@ -368,7 +462,7 @@ public class CarbbankService {
 		if (c == 0) {
 			List<String> distinctValues = mtRepository.findDistinctValue();
 			for (String name: distinctValues) {
-				long count = mtRepository.countByValue(name);
+				long count = mtRepository.countByValueIgnoreCase(name);
 				MappingMT mapping = new MappingMT();
 				mapping.setCount(Long.valueOf(count).intValue());
 				mapping.setName(name);
@@ -381,7 +475,7 @@ public class CarbbankService {
 		if (c == 0) {
 			List<String> distinctValues = pmRepository.findDistinctValue();
 			for (String name: distinctValues) {
-				long count = pmRepository.countByValue(name);
+				long count = pmRepository.countByValueIgnoreCase(name);
 				MappingPM mapping = new MappingPM();
 				mapping.setCount(Long.valueOf(count).intValue());
 				mapping.setName(name);
@@ -394,7 +488,7 @@ public class CarbbankService {
 		if (c == 0) {
 			List<String> distinctValues = tnRepository.findDistinctValue();
 			for (String name: distinctValues) {
-				long count = tnRepository.countByValue(name);
+				long count = tnRepository.countByValueIgnoreCase(name);
 				MappingTN mapping = new MappingTN();
 				mapping.setCount(Long.valueOf(count).intValue());
 				mapping.setName(name);
@@ -407,7 +501,7 @@ public class CarbbankService {
 		if (c == 0) {
 			List<String> distinctValues = baRepository.findDistinctValue();
 			for (String name: distinctValues) {
-				long count = baRepository.countByValue(name);
+				long count = baRepository.countByValueIgnoreCase(name);
 				MappingBA mapping = new MappingBA();
 				mapping.setCount(Long.valueOf(count).intValue());
 				mapping.setName(name);
@@ -418,24 +512,41 @@ public class CarbbankService {
 		
 		c = mappingPARepository.count();
 		if (c == 0) {
+			Map <String, Integer> counts = new HashMap<>();
 			List<String> distinctValues = paRepository.findDistinctValue();
 			Set<String> processed = new HashSet<>();
 			for (String name: distinctValues) {
-				long count = paRepository.countByValue(name);
 				String[] splitted = name.split(",");
 				for (String split: splitted) {
 					split = split.trim();
+					split = split.toLowerCase();
 					if (split.contains("-")) {
-						split = split.substring(0, split.indexOf("-"));
-						split = split.trim();
+						continue;   // ignore aminoacid part
+					}
+					String[] split2 = split.split(" ");
+					if (Arrays.asList(aminoAcids).contains(split2[0].toLowerCase())) {
+						continue;
 					}
 					if (!processed.contains(split)) {
 						processed.add(split);
 						MappingPA mapping = new MappingPA();
-						mapping.setCount(Long.valueOf(count).intValue());
 						mapping.setName(split);
 						mappingPARepository.save(mapping);
+					} 
+					if (counts.get(split) == null) {
+						counts.put(split, 1);
+					} else {
+						counts.put(split, counts.get(split) + 1);
 					}
+				}
+			}
+			
+			List<MappingPA> mappings = mappingPARepository.findAll();
+			for (MappingPA mapping: mappings) {
+				Integer count = counts.get(mapping.getName());
+				if (count != null) {
+					mapping.setCount(count);
+					mappingPARepository.save(mapping);
 				}
 			}
 		}
@@ -444,9 +555,10 @@ public class CarbbankService {
 		if (c == 0) {
 			List<String> distinctValues = dbRepository.findDistinctValue();
 			Set<String> processed = new HashSet<>();
+			Map <String, Integer> counts = new HashMap<>();
  			for (String name: distinctValues) {
 				String[] splitted = name.split(":");
-				long count = dbRepository.countByValue(name);
+				long count = dbRepository.countByValueIgnoreCase(name);
 				if (!processed.contains(splitted[0])) {
 					processed.add(splitted[0]);
 					MappingDB mapping = new MappingDB();
@@ -454,14 +566,239 @@ public class CarbbankService {
 					mapping.setName(splitted[0]);
 					mappingDBRepository.save(mapping);
 				}
+				if (counts.get(splitted[0]) == null) {
+					counts.put(splitted[0], 1);
+				} else {
+					counts.put(splitted[0], counts.get(splitted[0]) + 1);
+				}
+			}
+ 			
+ 			List<MappingDB> mappings = mappingDBRepository.findAll();
+			for (MappingDB mapping: mappings) {
+				Integer count = counts.get(mapping.getName());
+				if (count != null) {
+					mapping.setCount(count);
+					mappingDBRepository.save(mapping);
+				}
+			}
+		}
+		
+		// create BS mappings
+		
+		c = mappingBSRepository.count();
+		if (c == 0) {
+			List<String> distinctValues = bsRepository.findDistinctBS();
+			for (String name: distinctValues) {
+				if (name == null || name.isEmpty()) 
+					continue;
+				long count = bsRepository.countByBsIgnoreCase(name);
+				MappingBS_BS mapping = new MappingBS_BS();
+				mapping.setCount(Long.valueOf(count).intValue());
+				mapping.setName(name);
+				
+				mappingBSRepository.save(mapping);
+			}
+		}
+		
+		c = mappingCRepository.count();
+		if (c == 0) {
+			List<String> distinctValues = bsRepository.findDistinctC();
+			for (String name: distinctValues) {
+				if (name == null || name.isEmpty()) 
+					continue;
+				long count = bsRepository.countByCIgnoreCase(name);
+				MappingBS_C mapping = new MappingBS_C();
+				mapping.setCount(Long.valueOf(count).intValue());
+				mapping.setName(name);
+				
+				mappingCRepository.save(mapping);
+			}
+		}
+		
+		c = mappingCellineRepository.count();
+		if (c == 0) {
+			List<String> distinctValues = bsRepository.findDistinctCellline();
+			for (String name: distinctValues) {
+				if (name == null || name.isEmpty()) 
+					continue;
+				long count = bsRepository.countByCelllineIgnoreCase(name);
+				MappingCellLine mapping = new MappingCellLine();
+				mapping.setCount(Long.valueOf(count).intValue());
+				mapping.setName(name);
+				
+				mappingCellineRepository.save(mapping);
+			}
+		}
+		
+		c = mappingCNRepository.count();
+		if (c == 0) {
+			List<String> distinctValues = bsRepository.findDistinctCN();
+			for (String name: distinctValues) {
+				if (name == null || name.isEmpty()) 
+					continue;
+				long count = bsRepository.countByCnIgnoreCase(name);
+				MappingCN mapping = new MappingCN();
+				mapping.setCount(Long.valueOf(count).intValue());
+				mapping.setName(name);
+				
+				mappingCNRepository.save(mapping);
+			}
+		}
+		
+		c = mappingDiseaseRepository.count();
+		if (c == 0) {
+			List<String> distinctValues = bsRepository.findDistinctDisease();
+			for (String name: distinctValues) {
+				if (name == null || name.isEmpty()) 
+					continue;
+				long count = bsRepository.countByDiseaseIgnoreCase(name);
+				MappingDisease mapping = new MappingDisease();
+				mapping.setCount(Long.valueOf(count).intValue());
+				mapping.setName(name);
+				
+				mappingDiseaseRepository.save(mapping);
+			}
+		}
+		
+		c = mappingDomainRepository.count();
+		if (c == 0) {
+			List<String> distinctValues = bsRepository.findDistinctDomain();
+			for (String name: distinctValues) {
+				if (name == null || name.isEmpty()) 
+					continue;
+				long count = bsRepository.countByDomainIgnoreCase(name);
+				MappingDomain mapping = new MappingDomain();
+				mapping.setCount(Long.valueOf(count).intValue());
+				mapping.setName(name);
+				
+				mappingDomainRepository.save(mapping);
+			}
+		}
+		
+		c = mappingFRepository.count();
+		if (c == 0) {
+			List<String> distinctValues = bsRepository.findDistinctF();
+			for (String name: distinctValues) {
+				if (name == null || name.isEmpty()) 
+					continue;
+				long count = bsRepository.countByFIgnoreCase(name);
+				MappingF mapping = new MappingF();
+				mapping.setCount(Long.valueOf(count).intValue());
+				mapping.setName(name);
+				
+				mappingFRepository.save(mapping);
+			}
+		}
+		
+		c = mappingGSRepository.count();
+		if (c == 0) {
+			List<String> distinctValues = bsRepository.findDistinctGS();
+			for (String name: distinctValues) {
+				if (name == null || name.isEmpty()) 
+					continue;
+				long count = bsRepository.countByGsIgnoreCase(name);
+				MappingGS mapping = new MappingGS();
+				mapping.setCount(Long.valueOf(count).intValue());
+				mapping.setName(name);
+				
+				mappingGSRepository.save(mapping);
+			}
+		}
+		
+		c = mappingGTRepository.count();
+		if (c == 0) {
+			List<String> distinctValues = bsRepository.findDistinctGT();
+			for (String name: distinctValues) {
+				if (name == null || name.isEmpty()) 
+					continue;
+				long count = bsRepository.countByGtIgnoreCase(name);
+				MappingGT mapping = new MappingGT();
+				mapping.setCount(Long.valueOf(count).intValue());
+				mapping.setName(name);
+				
+				mappingGTRepository.save(mapping);
+			}
+		}
+		
+		c = mappingKRepository.count();
+		if (c == 0) {
+			List<String> distinctValues = bsRepository.findDistinctK();
+			for (String name: distinctValues) {
+				if (name == null || name.isEmpty()) 
+					continue;
+				long count = bsRepository.countByKIgnoreCase(name);
+				MappingK mapping = new MappingK();
+				mapping.setCount(Long.valueOf(count).intValue());
+				mapping.setName(name);
+				
+				mappingKRepository.save(mapping);
+			}
+		}
+		
+		c = mappingLSRepository.count();
+		if (c == 0) {
+			List<String> distinctValues = bsRepository.findDistinctLS();
+			for (String name: distinctValues) {
+				if (name == null || name.isEmpty()) 
+					continue;
+				long count = bsRepository.countByLsIgnoreCase(name);
+				MappingLS mapping = new MappingLS();
+				mapping.setCount(Long.valueOf(count).intValue());
+				mapping.setName(name);
+				
+				mappingLSRepository.save(mapping);
+			}
+		}
+		
+		c = mappingORepository.count();
+		if (c == 0) {
+			List<String> distinctValues = bsRepository.findDistinctO();
+			for (String name: distinctValues) {
+				if (name == null || name.isEmpty()) 
+					continue;
+				long count = bsRepository.countByOIgnoreCase(name);
+				MappingO mapping = new MappingO();
+				mapping.setCount(Long.valueOf(count).intValue());
+				mapping.setName(name);
+				
+				mappingORepository.save(mapping);
+			}
+		}
+		
+		c = mappingOTRepository.count();
+		if (c == 0) {
+			List<String> distinctValues = bsRepository.findDistinctOT();
+			for (String name: distinctValues) {
+				if (name == null || name.isEmpty()) 
+					continue;
+				long count = bsRepository.countByOtIgnoreCase(name);
+				MappingOT mapping = new MappingOT();
+				mapping.setCount(Long.valueOf(count).intValue());
+				mapping.setName(name);
+				
+				mappingOTRepository.save(mapping);
+			}
+		}
+		
+		c = mappingP_DRepository.count();
+		if (c == 0) {
+			List<String> distinctValues = bsRepository.findDistinctP_D();
+			for (String name: distinctValues) {
+				if (name == null || name.isEmpty()) 
+					continue;
+				long count = bsRepository.countByPdIgnoreCase(name);
+				MappingP_D mapping = new MappingP_D();
+				mapping.setCount(Long.valueOf(count).intValue());
+				mapping.setName(name);
+				
+				mappingP_DRepository.save(mapping);
 			}
 		}
 		
 		Set<String> overlap = new HashSet<>();
-		Set<String> mismatch = new HashSet<>();
 		long pubCount = publicationRepository.count();
 		List<CarbbankRecord> records = carbbankRepository.findAll();
-		Map<String, Publication> created = new HashMap<>();
+		List <Publication> created = new ArrayList<>();
 		for (CarbbankRecord record: records) {
 			if (record.getStList() != null && !record.getStList().isEmpty()) {
 				if (record.getBsList() != null && !record.getBsList().isEmpty()) {
@@ -471,12 +808,11 @@ public class CarbbankService {
 		
 			if (pubCount == 0) {
 				// create publications
-				Publication p = created.get(record.getTI());
-				if (p == null) {
-					Publication pub = new Publication();
-					pub.setTitle (record.getTI());
-					pub.setAuthor(record.getAU());
-					pub.setJournal(record.getCT());
+				Publication pub = new Publication();
+				pub.setTitle (record.getTI());
+				pub.setAuthor(record.getAU());
+				pub.setJournal(record.getCT());
+				if (!created.contains(pub)) {
 					for (DB db: record.getDbList()) {
 						if (db.getValue().toLowerCase().startsWith("pmid")) {
 							String[] split = db.getValue().split(":");
@@ -486,23 +822,13 @@ public class CarbbankService {
 							}
 						}
 					}
-					created.put(pub.getTitle(), pub);
+					created.add(pub);
 					publicationRepository.save(pub);
-				} else {
-					// check if other fields match
-					if ((p.getAuthor() != null && !p.getAuthor().equalsIgnoreCase(record.getAU())) || (p.getJournal() != null && !p.getJournal().equalsIgnoreCase(record.getCT()))) {
-						mismatch.add(record.getCC());
-					}
-					
-				}
+				} 
 			}
 		}
 		if (overlap.size() > 0) {
 			logger.error("There is an overlap of ST and BS for records: " + overlap);
 		}
-		if (mismatch.size() > 0) {
-			logger.error("Publication details do not match for records:  " + mismatch);
-		}
-
 	}
 }

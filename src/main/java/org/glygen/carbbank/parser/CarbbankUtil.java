@@ -22,9 +22,13 @@ public class CarbbankUtil {
         String currentKey = null;
         StringBuilder currentValue = new StringBuilder();
         Map<String, Integer> subKeyIndexMap = new HashMap<>();
-        
+        boolean noTrim = false;
         while ((line = reader.readLine()) != null) {
-            line = line.trim();
+        	if (line.startsWith("structure:"))
+        		noTrim = true;
+        	if (!noTrim) {
+        		line = line.trim();
+        	}
             if (line.startsWith("; start of record")) {
                 currentRecord = new HashMap<>();
                 for (String key: subKeyIndexMap.keySet()) {
@@ -32,7 +36,11 @@ public class CarbbankUtil {
                 }
             } else if (line.startsWith("================end of record")) {
                 if (currentRecord != null && currentKey != null) {
-                    currentRecord.put(currentKey, currentValue.toString().trim());
+                	if (currentKey.equals("structure")) {
+                		currentRecord.put(currentKey, currentValue.toString());
+                	} else {
+                		currentRecord.put(currentKey, currentValue.toString().trim());
+                	}
                 }
                 if (currentRecord != null) {
                     records.add(currentRecord);
@@ -53,16 +61,22 @@ public class CarbbankUtil {
             	if (colonIndex != -1 && (colonIndex == 2 || line.startsWith("structure:")) 
             			&& spaceFound) {
                     if (currentKey != null) {
-                        currentRecord.put(currentKey, currentValue.toString().trim());  
+                    	if (currentKey.equals("structure")) {
+                    		currentRecord.put(currentKey, currentValue.toString());
+                    	} else {
+                    		currentRecord.put(currentKey, currentValue.toString().trim());
+                    	}
                     }
                     String[] parts = line.split(":", 2);
                     if (parts.length == 2 && (parts[0].trim().equals("structure") || parts[0].trim().length() == 2)) {
                         currentKey = parts[0].trim();
+                        if (noTrim && !currentKey.equalsIgnoreCase("structure")) noTrim = false;
                         if (subKeyIndexMap.get(currentKey) == null) {
                         	subKeyIndexMap.put(currentKey, -1);
                         }
                         currentValue.setLength(0);
-                        currentValue.append(parts[1].trim());
+                        if (noTrim) currentValue.append(parts[1]);
+                        else currentValue.append(parts[1].trim());
                         if (currentKey.startsWith("BS")) {
                     		parseMultiField(currentRecord, currentKey, currentValue.toString(), subKeyIndexMap.get("BS"));
 	                        currentKey = null;
@@ -122,7 +136,8 @@ public class CarbbankUtil {
 	        
 			try (BufferedWriter writer = new BufferedWriter(new FileWriter(filePath))) {
 				for (Map<String, String> record : records) {
-					writer.append("Record:\n");
+					writer.append("; start of record\n");
+					writer.append("; db=ccsd29\n; Record #=1\n");
 	                for (Map.Entry<String, String> entry : record.entrySet()) {
 	                	String pattern = entry.getKey();
 	                	if (!pattern.startsWith("AG") &&
@@ -140,9 +155,9 @@ public class CarbbankUtil {
 		                		!pattern.startsWith("AM")) {
 	                		patterns.add(pattern);
 	                	}
-	                    writer.append(entry.getKey() + ": " + entry.getValue() + "\n");
+	                	writer.append(entry.getKey() + ": " + entry.getValue() + "\n");
 	                }
-	                writer.append("----------------\n");
+	                writer.append("================end of record\n");
 	            }
 			    System.out.println("Successfully wrote to the file.");
 			} catch (IOException e) {

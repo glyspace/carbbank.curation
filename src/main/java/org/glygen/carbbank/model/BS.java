@@ -5,15 +5,17 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.SequenceGenerator;
 
 @Entity
 public class BS {
 	Long id;
 	String bs;
 	String c;
-	String cell_line;
+	String cellline;
 	String cn;
 	String disease;
 	String domain;
@@ -25,7 +27,7 @@ public class BS {
 	String nt;
 	String o;
 	String ot;
-	String p_d;
+	String pd;
 	String star;
 	
 	CarbbankRecord record;
@@ -38,9 +40,9 @@ public class BS {
 	public void setRecord(CarbbankRecord record) {
 		this.record = record;
 	}
-	
+		
 	@Id
-	@GeneratedValue
+	@GeneratedValue(strategy=GenerationType.SEQUENCE, generator="carbbank_seq")
 	public Long getId() {
 		return id;
 	}
@@ -63,11 +65,11 @@ public class BS {
 		this.c = c;
 	}
 	@Column
-	public String getCell_line() {
-		return cell_line;
+	public String getCellline() {
+		return cellline;
 	}
-	public void setCell_line(String cell_line) {
-		this.cell_line = cell_line;
+	public void setCellline(String cell_line) {
+		this.cellline = cell_line;
 	}
 	@Column
 	public String getCn() {
@@ -146,12 +148,12 @@ public class BS {
 	public void setOt(String ot) {
 		this.ot = ot;
 	}
-	@Column
-	public String getP_d() {
-		return p_d;
+	@Column(name="p_d")
+	public String getPd() {
+		return pd;
 	}
-	public void setP_d(String p_d) {
-		this.p_d = p_d;
+	public void setPd(String p_d) {
+		this.pd = p_d;
 	}
 	@Column
 	public String getStar() {

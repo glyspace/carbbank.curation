@@ -10,5 +10,5 @@ public interface TNRepository extends JpaRepository<TN, Long> {
 	@Query("SELECT DISTINCT lower(a.value) FROM TN a")
 	List<String> findDistinctValue();
 	
-	long countByValue (String name);
+	long countByValueIgnoreCase (String name);
 }

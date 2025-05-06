@@ -57,5 +57,41 @@ public class Publication {
 	public void setCarbbankPmid(String carbbankPmid) {
 		this.carbbankPmid = carbbankPmid;
 	}
+	
+	@Override
+	public boolean equals(Object obj) {
+		if (obj instanceof Publication) {
+			if (title != null && title.equalsIgnoreCase(((Publication) obj).getTitle())) {
+				if (author != null) {
+					if (author.equalsIgnoreCase(((Publication) obj).getAuthor())) {
+						if (journal != null) {
+							if (journal.equalsIgnoreCase(((Publication) obj).getJournal())) {
+								return true;
+							}
+						}
+						else {
+							return true;
+						}
+					}
+				} else {
+					if (journal != null) {
+						if (journal.equalsIgnoreCase(((Publication) obj).getJournal())) {
+							return true;
+						}
+					}
+					else {
+						return true;
+					}
+				}
+			}
+		}
+		return super.equals(obj);
+	}
+	
+	@Override
+	public int hashCode() {
+		String pub = title+author+journal;
+		return pub.hashCode();
+	}
 
 }

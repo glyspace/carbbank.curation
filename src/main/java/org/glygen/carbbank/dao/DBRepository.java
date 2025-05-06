@@ -10,6 +10,5 @@ public interface DBRepository extends JpaRepository<DB, Long> {
 	@Query("SELECT DISTINCT lower(a.value) FROM DB a")
 	List<String> findDistinctValue();
 	
-	long countByValue (String name);
-
+	long countByValueIgnoreCase (String name);
 }

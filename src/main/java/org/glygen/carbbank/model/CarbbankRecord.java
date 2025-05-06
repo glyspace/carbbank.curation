@@ -17,8 +17,6 @@ public class CarbbankRecord {
 	String structure;
 	
 	String AU;
-	String BA;
-	String BA2;
 	String CC;
 	String CT;
 	String DA;
@@ -30,6 +28,7 @@ public class CarbbankRecord {
 	Collection<AG> agList;
 	Collection<AM> amList;
 	Collection<AN> anList;
+	Collection<BA> baList;
 	Collection<BS> bsList;
 	Collection<DB> dbList;
 	Collection<MT> mtList;
@@ -58,20 +57,6 @@ public class CarbbankRecord {
 	}
 	public void setAU(String aU) {
 		AU = aU;
-	}
-	@Column
-	public String getBA() {
-		return BA;
-	}
-	public void setBA(String bA) {
-		BA = bA;
-	}
-	@Column
-	public String getBA2() {
-		return BA2;
-	}
-	public void setBA2(String bA2) {
-		BA2 = bA2;
 	}
 	@Column
 	public String getCC() {
@@ -260,5 +245,14 @@ public class CarbbankRecord {
 
 	public void setVrList(Collection<VR> vrList) {
 		this.vrList = vrList;
+	}
+
+	@OneToMany(mappedBy = "record", cascade = CascadeType.ALL)
+	public Collection<BA> getBaList() {
+		return baList;
+	}
+
+	public void setBaList(Collection<BA> baList) {
+		this.baList = baList;
 	}
 }

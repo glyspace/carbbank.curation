@@ -41,6 +41,9 @@ public class CarbbankApplication {
 					e.printStackTrace();
 				}
 	    	}
+	    } else {
+	    	// do not parse the file, only work on the mappings
+	    	service.createMappingTables();
 	    }
 	}
 

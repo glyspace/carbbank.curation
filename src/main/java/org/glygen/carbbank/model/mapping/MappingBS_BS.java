@@ -23,6 +23,8 @@ public class MappingBS_BS {
 	String namespaceId;
 	@Column
 	String mappingName;
+	@Column
+	String rank;
 	
 	public Long getId() {
 		return id;
@@ -59,5 +61,11 @@ public class MappingBS_BS {
 	}
 	public void setMappingName(String mappingName) {
 		this.mappingName = mappingName;
+	}
+	public String getRank() {
+		return rank;
+	}
+	public void setRank(String rank) {
+		this.rank = rank;
 	}
 }

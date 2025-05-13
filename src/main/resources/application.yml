@@ -7,3 +7,5 @@ spring:
     separator: ^^^ END OF SCRIPT ^^^
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
+ncbi:
+  api-key: ENC(/IuwNTHNR7ZDXFolnV/bnTfhj9l0Awr2UN1wBeWdKPzaARshqNOUTA3F7giwo6tq)

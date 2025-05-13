@@ -1,5 +1,6 @@
 package org.glygen.carbbank.service;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -7,7 +8,10 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Map.Entry;
 
+import org.apache.commons.collections4.trie.PatriciaTrie;
+import org.glygen.carbbank.NamespaceHandler;
 import org.glygen.carbbank.dao.AGRepository;
 import org.glygen.carbbank.dao.AMRepository;
 import org.glygen.carbbank.dao.ANRepository;
@@ -53,10 +57,12 @@ import org.glygen.carbbank.model.DB;
 import org.glygen.carbbank.model.MT;
 import org.glygen.carbbank.model.NC;
 import org.glygen.carbbank.model.NT;
+import org.glygen.carbbank.model.NamespaceEntry;
 import org.glygen.carbbank.model.PA;
 import org.glygen.carbbank.model.PM;
 import org.glygen.carbbank.model.SC;
 import org.glygen.carbbank.model.ST;
+import org.glygen.carbbank.model.Species;
 import org.glygen.carbbank.model.TN;
 import org.glygen.carbbank.model.VR;
 import org.glygen.carbbank.model.mapping.MappingAG;
@@ -83,7 +89,9 @@ import org.glygen.carbbank.model.mapping.MappingPM;
 import org.glygen.carbbank.model.mapping.MappingP_D;
 import org.glygen.carbbank.model.mapping.MappingTN;
 import org.glygen.carbbank.model.mapping.Publication;
+import org.glygen.carbbank.parser.PubmedUtil;
 import org.slf4j.Logger;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import jakarta.transaction.Transactional;
@@ -92,6 +100,9 @@ import jakarta.transaction.Transactional;
 public class CarbbankService {
 	
 	static Logger logger = org.slf4j.LoggerFactory.getLogger(CarbbankService.class);
+	
+	@Value("${ncbi.api-key}")
+	String apiKey;
 	
 
 	String[] aminoAcids = {
@@ -217,14 +228,14 @@ public class CarbbankService {
     	for (Map<String, String> record : records) {
     		CarbbankRecord carbRecord = new CarbbankRecord();
     		String structure = record.get("structure");
-    		structure = structure.replaceAll("'", "''");
+    		//structure = structure.replaceAll("'", "''");
     		carbRecord.setStructure(structure);
     		
     		Map<String, Map<String, String>> bsRecords = new HashMap<>();
     		
     		for (Map.Entry<String, String> entry : record.entrySet()) {
     			String value = entry.getValue(); 
-    			value = value.replaceAll("'", "''");
+    			//value = value.replaceAll("'", "''");
     			value = value.trim();
     			if (value.length() == 0) {
     				continue;    // skip the empty values
@@ -799,6 +810,7 @@ public class CarbbankService {
 		long pubCount = publicationRepository.count();
 		List<CarbbankRecord> records = carbbankRepository.findAll();
 		List <Publication> created = new ArrayList<>();
+		
 		for (CarbbankRecord record: records) {
 			if (record.getStList() != null && !record.getStList().isEmpty()) {
 				if (record.getBsList() != null && !record.getBsList().isEmpty()) {
@@ -807,12 +819,12 @@ public class CarbbankService {
 			}
 		
 			if (pubCount == 0) {
-				// create publications
-				Publication pub = new Publication();
-				pub.setTitle (record.getTI());
-				pub.setAuthor(record.getAU());
-				pub.setJournal(record.getCT());
-				if (!created.contains(pub)) {
+				if (record.getTI() != null) {
+					// create publications
+					Publication pub = new Publication();
+					pub.setTitle (record.getTI().replace("\n", " "));
+					pub.setAuthor(record.getAU());
+					pub.setJournal(record.getCT());
 					for (DB db: record.getDbList()) {
 						if (db.getValue().toLowerCase().startsWith("pmid")) {
 							String[] split = db.getValue().split(":");
@@ -822,13 +834,415 @@ public class CarbbankService {
 							}
 						}
 					}
-					created.add(pub);
-					publicationRepository.save(pub);
-				} 
-			}
+					if (!created.contains(pub)) {	
+						Publication saved = publicationRepository.save(pub);
+						created.add(saved);
+					} else {
+						// update if additional information is there
+						if (pub.getCarbbankPmid() != null) {
+							for (Publication p: created) {
+								if (p.equals(pub)) {
+									p.setCarbbankPmid(pub.getCarbbankPmid());
+									publicationRepository.save(p);
+									break;
+								}
+							}
+						}
+					}
+				}
+			} 
 		}
+		
 		if (overlap.size() > 0) {
 			logger.error("There is an overlap of ST and BS for records: " + overlap);
 		}
 	}
+	
+	public void addPMIDs () {
+		// add pmids
+		PubmedUtil util = new PubmedUtil(apiKey);
+		// go through existing ones and assign pmid if not assigned
+		List<Publication> allPublications = publicationRepository.findAll();
+		for (Publication pub: allPublications) {
+			if (pub.getPmid() == null || pub.getPmid().isEmpty()) {
+				// check Pubmed to see if we can get the pmid
+				try {
+					if (pub.getChecked() == null || !pub.getChecked()) {
+						List<Publication> matches = util.getPublicationByTitle(pub.getTitle());
+						if (!matches.isEmpty()) {
+							for (Publication m: matches) {
+								if (m.equals(pub)) {
+									pub.setPmid(m.getPmid());
+									//publicationRepository.save(pub);
+									break;
+								}
+							}
+						}
+						pub.setChecked(true);
+						publicationRepository.save(pub);
+						
+						try {
+					        Thread.sleep(100); // wait 100 milliseconds between requests
+					    } catch (InterruptedException e) {
+					        Thread.currentThread().interrupt(); // restore interrupted status
+					    }
+					}
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+		}
+	}
+	
+	public void addBSInformation () {
+		PubmedUtil util = new PubmedUtil(apiKey);
+		
+		List<MappingBS_BS> allBS = mappingBSRepository.findAll();
+		for (MappingBS_BS bs: allBS) {
+			try {
+				if (bs.getNamespaceName() == null) {
+					List<Species> matches = util.getSpecies(bs.getName());
+					if (!matches.isEmpty()) {
+						if (matches.size() > 1) {
+							logger.info("multiple matches for " + bs.getName());
+						} else {
+							Species s = matches.get(0);
+							bs.setNamespaceName(s.getName());
+							bs.setRank(s.getRank());
+							bs.setNamespaceId(s.getId());
+							mappingBSRepository.save(bs);
+						}
+					}
+				}
+				
+				try {
+			        Thread.sleep(100); // wait 100 milliseconds between requests
+			    } catch (InterruptedException e) {
+			        Thread.currentThread().interrupt(); // restore interrupted status
+			    }
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		
+		List<MappingBS_C> allC = mappingCRepository.findAll();
+		for (MappingBS_C bs: allC) {
+			try {
+				if (bs.getNamespaceName() == null) {
+					List<Species> matches = util.getSpecies(bs.getName());
+					if (!matches.isEmpty()) {
+						if (matches.size() > 1) {
+							logger.info("multiple matches for " + bs.getName());
+						} else {
+							Species s = matches.get(0);
+							bs.setNamespaceName(s.getName());
+							bs.setRank(s.getRank());
+							bs.setNamespaceId(s.getId());
+							mappingCRepository.save(bs);
+						}
+					}
+				}
+				
+				try {
+			        Thread.sleep(100); // wait 100 milliseconds between requests
+			    } catch (InterruptedException e) {
+			        Thread.currentThread().interrupt(); // restore interrupted status
+			    }
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		
+		List<MappingCN> allCN = mappingCNRepository.findAll();
+		for (MappingCN bs: allCN) {
+			try {
+				if (bs.getNamespaceName() == null) {
+					List<Species> matches = util.getSpecies(bs.getName());
+					if (!matches.isEmpty()) {
+						if (matches.size() > 1) {
+							logger.info("multiple matches for " + bs.getName());
+						} else {
+							Species s = matches.get(0);
+							bs.setNamespaceName(s.getName());
+							bs.setRank(s.getRank());
+							bs.setNamespaceId(s.getId());
+							mappingCNRepository.save(bs);
+						}
+					}
+				}
+				
+				try {
+			        Thread.sleep(100); // wait 100 milliseconds between requests
+			    } catch (InterruptedException e) {
+			        Thread.currentThread().interrupt(); // restore interrupted status
+			    }
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		
+		List<MappingDomain> all = mappingDomainRepository.findAll();
+		for (MappingDomain bs: all) {
+			try {
+				if (bs.getNamespaceName() == null) {
+					List<Species> matches = util.getSpecies(bs.getName());
+					if (!matches.isEmpty()) {
+						if (matches.size() > 1) {
+							logger.info("multiple matches for " + bs.getName());
+						} else {
+							Species s = matches.get(0);
+							bs.setNamespaceName(s.getName());
+							bs.setRank(s.getRank());
+							bs.setNamespaceId(s.getId());
+							mappingDomainRepository.save(bs);
+						}
+					}
+				}
+				
+				try {
+			        Thread.sleep(100); // wait 100 milliseconds between requests
+			    } catch (InterruptedException e) {
+			        Thread.currentThread().interrupt(); // restore interrupted status
+			    }
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		
+		List<MappingF> allF = mappingFRepository.findAll();
+		for (MappingF bs: allF) {
+			try {
+				if (bs.getNamespaceName() == null) {
+					List<Species> matches = util.getSpecies(bs.getName());
+					if (!matches.isEmpty()) {
+						if (matches.size() > 1) {
+							logger.info("multiple matches for " + bs.getName());
+						} else {
+							Species s = matches.get(0);
+							bs.setNamespaceName(s.getName());
+							bs.setRank(s.getRank());
+							bs.setNamespaceId(s.getId());
+							mappingFRepository.save(bs);
+						}
+					}
+				}
+				
+				try {
+			        Thread.sleep(100); // wait 100 milliseconds between requests
+			    } catch (InterruptedException e) {
+			        Thread.currentThread().interrupt(); // restore interrupted status
+			    }
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		
+		List<MappingGS> allGS = mappingGSRepository.findAll();
+		for (MappingGS bs: allGS) {
+			try {
+				if (bs.getNamespaceName() == null) {
+					List<Species> matches = util.getSpecies(bs.getName());
+					if (!matches.isEmpty()) {
+						if (matches.size() > 1) {
+							logger.info("multiple matches for " + bs.getName());
+						} else {
+							Species s = matches.get(0);
+							bs.setNamespaceName(s.getName());
+							bs.setRank(s.getRank());
+							bs.setNamespaceId(s.getId());
+							mappingGSRepository.save(bs);
+						}
+					}
+				}
+				
+				try {
+			        Thread.sleep(100); // wait 100 milliseconds between requests
+			    } catch (InterruptedException e) {
+			        Thread.currentThread().interrupt(); // restore interrupted status
+			    }
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		
+		List<MappingK> allK = mappingKRepository.findAll();
+		for (MappingK bs: allK) {
+			try {
+				if (bs.getNamespaceName() == null) {
+					List<Species> matches = util.getSpecies(bs.getName());
+					if (!matches.isEmpty()) {
+						if (matches.size() > 1) {
+							logger.info("multiple matches for " + bs.getName());
+						} else {
+							Species s = matches.get(0);
+							bs.setNamespaceName(s.getName());
+							bs.setRank(s.getRank());
+							bs.setNamespaceId(s.getId());
+							mappingKRepository.save(bs);
+						}
+					}
+				}
+				
+				try {
+			        Thread.sleep(100); // wait 100 milliseconds between requests
+			    } catch (InterruptedException e) {
+			        Thread.currentThread().interrupt(); // restore interrupted status
+			    }
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		
+		List<MappingO> allO = mappingORepository.findAll();
+		for (MappingO bs: allO) {
+			try {
+				if (bs.getNamespaceName() == null) {
+					List<Species> matches = util.getSpecies(bs.getName());
+					if (!matches.isEmpty()) {
+						if (matches.size() > 1) {
+							logger.info("multiple matches for " + bs.getName());
+						} else {
+							Species s = matches.get(0);
+							bs.setNamespaceName(s.getName());
+							bs.setRank(s.getRank());
+							bs.setNamespaceId(s.getId());
+							mappingORepository.save(bs);
+						}
+					}
+				}
+				
+				try {
+			        Thread.sleep(100); // wait 100 milliseconds between requests
+			    } catch (InterruptedException e) {
+			        Thread.currentThread().interrupt(); // restore interrupted status
+			    }
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		
+		List<MappingP_D> allpd = mappingP_DRepository.findAll();
+		for (MappingP_D bs: allpd) {
+			try {
+				if (bs.getNamespaceName() == null) {
+					List<Species> matches = util.getSpecies(bs.getName());
+					if (!matches.isEmpty()) {
+						if (matches.size() > 1) {
+							logger.info("multiple matches for " + bs.getName());
+						} else {
+							Species s = matches.get(0);
+							bs.setNamespaceName(s.getName());
+							bs.setRank(s.getRank());
+							bs.setNamespaceId(s.getId());
+							mappingP_DRepository.save(bs);
+						}
+					}
+				}
+				
+				try {
+			        Thread.sleep(100); // wait 100 milliseconds between requests
+			    } catch (InterruptedException e) {
+			        Thread.currentThread().interrupt(); // restore interrupted status
+			    }
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		
+		List<MappingDisease> allDisease = mappingDiseaseRepository.findAll();
+		for (MappingDisease d: allDisease) {
+			if (d.getNamespaceName() == null) {
+				List<NamespaceEntry> matches = findCanonicalForm("doid-base.txt", d.getName());
+				if (!matches.isEmpty()) {
+					if (matches.size() > 1) {
+						logger.info("multiple matches for " + d.getName());
+					} else {
+						NamespaceEntry match = matches.get(0);
+						d.setNamespaceName(match.getLabel());
+						if (match.getUri() != null) {
+							String id = match.getUri().substring(match.getUri().lastIndexOf("/")+1);
+							String[] split = id.split("_");
+							String namespaceId = split[0] + (split.length > 1 ? ":" + split[1] : "");
+							d.setNamespaceId(namespaceId);
+						}
+						mappingDiseaseRepository.save(d);
+					}
+				}
+			}
+		}
+		
+		List<MappingOT> allOT = mappingOTRepository.findAll();
+		for (MappingOT d: allOT) {
+			if (d.getNamespaceName() == null) {
+				List<NamespaceEntry> matches = findCanonicalForm("uberon-base.txt", d.getName());
+				if (!matches.isEmpty()) {
+					if (matches.size() > 1) {
+						logger.info("multiple matches for " + d.getName());
+					} else {
+						NamespaceEntry match = matches.get(0);
+						d.setNamespaceName(match.getLabel());
+						if (match.getUri() != null) {
+							String id = match.getUri().substring(match.getUri().lastIndexOf("/")+1);
+							String[] split = id.split("_");
+							String namespaceId = split[0] + (split.length > 1 ? ":" + split[1] : "");
+							d.setNamespaceId(namespaceId);
+						}
+						mappingOTRepository.save(d);
+					}
+				}
+			}
+		}
+		
+		List<MappingCellLine> allCellline = mappingCellineRepository.findAll();
+		for (MappingCellLine d: allCellline) {
+			if (d.getNamespaceName() == null) {
+				List<NamespaceEntry> matches = findCanonicalForm("cellline.txt.gz", d.getName());
+				if (!matches.isEmpty()) {
+					if (matches.size() > 1) {
+						logger.info("multiple matches for " + d.getName());
+					} else {
+						NamespaceEntry match = matches.get(0);
+						d.setNamespaceName(match.getLabel());
+						if (match.getUri() != null) {
+							String id = match.getUri().substring(match.getUri().lastIndexOf("/")+1);
+							String[] split = id.split("_");
+							String namespaceId = split[0] + (split.length > 1 ? ":" + split[1] : "");
+							d.setNamespaceId(namespaceId);
+						}
+						mappingCellineRepository.save(d);
+					}
+				}
+			}
+		}
+	}
+	
+	
+	List<NamespaceEntry> findCanonicalForm (String namespaceFile, String value) {
+		// find the file identifier associated with the given namespace
+				
+		List<NamespaceEntry> matches = new ArrayList<>();
+		PatriciaTrie<List<NamespaceEntry>> trie = null;
+		
+		// find the exact match if exists
+		trie = NamespaceHandler.getTrieForNamespace(namespaceFile);
+		if (trie != null) {
+			Entry<String, List<NamespaceEntry>> entry = trie.select(value.toLowerCase());
+			if (entry.getKey().toLowerCase().equals(value.toLowerCase())) {
+				matches.addAll(entry.getValue());
+			}
+		}
+		
+		return matches;
+	}
+	
 }

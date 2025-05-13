@@ -24,6 +24,16 @@ public class MappingF {
 	@Column
 	String mappingName;
 	
+	@Column
+	String rank;
+	
+	public String getRank() {
+		return rank;
+	}
+	public void setRank(String rank) {
+		this.rank = rank;
+	}
+	
 	public Long getId() {
 		return id;
 	}

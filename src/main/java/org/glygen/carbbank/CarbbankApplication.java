@@ -30,6 +30,7 @@ public class CarbbankApplication {
 	@EventListener(ApplicationReadyEvent.class)
 	public void doSomethingAfterStartup(ApplicationReadyEvent event) {
 		ApplicationArguments args = event.getApplicationContext().getBean(ApplicationArguments.class);
+		NamespaceHandler.loadNamespaces();
 	    if (args.containsOption("file")) {
 	    	List<String> carbbankFile = args.getOptionValues("file");
 	    	if (!carbbankFile.isEmpty()) {
@@ -45,6 +46,8 @@ public class CarbbankApplication {
 	    } else {
 	    	// do not parse the file, only work on the mappings
 	    	service.createMappingTables();
+	    	service.addBSInformation();
+	    	service.addPMIDs();
 	    }
 	}
 

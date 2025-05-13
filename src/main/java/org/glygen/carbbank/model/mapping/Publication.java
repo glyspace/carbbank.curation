@@ -21,6 +21,11 @@ public class Publication {
 	String pmid;
 	@Column
 	String carbbankPmid;
+	@Column
+	String doiId;
+	@Column
+	Boolean checked;
+	
 	public Long getId() {
 		return id;
 	}
@@ -92,6 +97,18 @@ public class Publication {
 	public int hashCode() {
 		String pub = title+author+journal;
 		return pub.hashCode();
+	}
+	public String getDoiId() {
+		return doiId;
+	}
+	public void setDoiId(String doiId) {
+		this.doiId = doiId;
+	}
+	public Boolean getChecked() {
+		return checked;
+	}
+	public void setChecked(Boolean checked) {
+		this.checked = checked;
 	}
 
 }

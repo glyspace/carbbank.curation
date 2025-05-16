@@ -25,6 +25,16 @@ public class MappingK {
 	String mappingName;
 	@Column
 	String rank;
+	@Column
+	String matchCount;
+	
+	public String getMatchCount() {
+		return matchCount;
+	}
+	
+	public void setMatchCount(String matchCount) {
+		this.matchCount = matchCount;
+	}
 	
 	public String getRank() {
 		return rank;

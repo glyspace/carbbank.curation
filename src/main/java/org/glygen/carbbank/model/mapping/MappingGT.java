@@ -23,6 +23,16 @@ public class MappingGT {
 	String namespaceId;
 	@Column
 	String mappingName;
+	@Column
+	String matchCount;
+	
+	public String getMatchCount() {
+		return matchCount;
+	}
+	
+	public void setMatchCount(String matchCount) {
+		this.matchCount = matchCount;
+	}
 	
 	public Long getId() {
 		return id;

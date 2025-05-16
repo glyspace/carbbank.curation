@@ -38,6 +38,8 @@ public class CarbbankApplication {
 	    			List<Map<String, String>> records = CarbbankUtil.parseFile(carbbankFile.get(0));
 	    			service.saveRecords(records);
 	    			service.createMappingTables();
+	    			service.addBSInformation();
+	    	    	service.addPMIDs();
 				} catch (IOException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
@@ -47,6 +49,7 @@ public class CarbbankApplication {
 	    	// do not parse the file, only work on the mappings
 	    	service.createMappingTables();
 	    	service.addBSInformation();
+	    	service.findConflictsInSpecies();
 	    	service.addPMIDs();
 	    }
 	}

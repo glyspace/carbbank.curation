@@ -25,6 +25,26 @@ public class Publication {
 	String doiId;
 	@Column
 	Boolean checked;
+	@Column
+	String matchCount;
+	@Column(length=4000)
+	String matchDetails;
+	
+	public String getMatchDetails() {
+		return matchDetails;
+	}
+	
+	public void setMatchDetails(String matchDetails) {
+		this.matchDetails = matchDetails;
+	}
+	
+	public String getMatchCount() {
+		return matchCount;
+	}
+	
+	public void setMatchCount(String matchCount) {
+		this.matchCount = matchCount;
+	}
 	
 	public Long getId() {
 		return id;
@@ -109,6 +129,11 @@ public class Publication {
 	}
 	public void setChecked(Boolean checked) {
 		this.checked = checked;
+	}
+	
+	@Override
+	public String toString() {
+		return "Title: " + title + " Authors: " + author + " Journal: " + journal;
 	}
 
 }

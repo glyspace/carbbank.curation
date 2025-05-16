@@ -61,15 +61,14 @@ public class PubmedUtil {
 
 	        JSONObject obj = new JSONObject(json);
 	        JSONObject searchResult = obj.getJSONObject("esearchresult");
-	        if (searchResult != null && searchResult.has("idList")) {
+	        if (searchResult != null && searchResult.has("idlist")) {
 		        JSONArray idList = searchResult.getJSONArray("idlist");
 		        if (idList.length() > 0) {
 		        	for (int i=0; i < idList.length(); i++) {
 		        		String pmid = idList.getString(i);
 		        		Publication pub = getPublicatonByPMID(pmid);
-		        		if (pub.getTitle() != null && pub.getTitle().equalsIgnoreCase(title)) {
-		        			results.add(pub);
-		        		}
+		        		results.add(pub);
+		        		
 		        	}
 		        } 	
 	        }
@@ -159,10 +158,10 @@ public class PubmedUtil {
                     String lastName = getTagValue(author, "LastName");
                     String foreName = getTagValue(author, "Initials");
                     if (lastName != null && foreName != null) {
-                        authorList += lastName + " " + foreName + "; ";
+                        authorList += replaceUmlaut(lastName) + " " + replaceUmlaut(foreName) + "; ";
                     }
                 }
-                if (!authorList.isEmpty() && authorList.length() > 1)
+                if (!authorList.isEmpty() && authorList.trim().length() > 1)
                 	authorList = authorList.trim().substring(0, authorList.trim().length()-1);
                 pub.setAuthor(authorList);
             }
@@ -179,6 +178,84 @@ public class PubmedUtil {
 	    }
 	    return null;
 	}
+    
+    public boolean checkIfSameHierarchy  (String id1, String id2) throws IOException {
+    	String apiUrl = ncbiFetchUrl + id1;
+		if (apiKey != null) {
+			apiUrl += "&api_key=" + apiKey;
+		}
+		
+		List<String> hierarchy1 = new ArrayList<>();
+		List<String> hierarchy2 = new ArrayList<>();
+		try {
+            URL url = new URL(apiUrl);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+
+            InputStream inputStream = conn.getInputStream();
+
+            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            DocumentBuilder builder = factory.newDocumentBuilder();
+            Document doc = builder.parse(inputStream);
+            
+            
+            NodeList lineageList = doc.getElementsByTagName("LineageEx");
+            if (lineageList.getLength() > 0) {
+                Element lineage = (Element) lineageList.item(0);
+                NodeList taxIdList = lineage.getElementsByTagName("TaxId");
+                
+                for (int i=0; i < taxIdList.getLength(); i++) {
+                	Element taxId = (Element) taxIdList.item(i);
+                	hierarchy1.add(taxId.getTextContent());
+                }
+            }
+            
+            apiUrl = ncbiFetchUrl + id2;
+    		if (apiKey != null) {
+    			apiUrl += "&api_key=" + apiKey;
+    		}
+            url = new URL(apiUrl);
+            conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+
+            inputStream = conn.getInputStream();
+
+            factory = DocumentBuilderFactory.newInstance();
+            builder = factory.newDocumentBuilder();
+            doc = builder.parse(inputStream);
+            
+            
+            lineageList = doc.getElementsByTagName("LineageEx");
+            if (lineageList.getLength() > 0) {
+                Element lineage = (Element) lineageList.item(0);
+                NodeList taxIdList = lineage.getElementsByTagName("TaxId");
+                
+                for (int i=0; i < taxIdList.getLength(); i++) {
+                	Element taxId = (Element) taxIdList.item(i);
+                	hierarchy2.add(taxId.getTextContent());
+                }
+            }
+            
+            // check if id1 exists in hierarchy2 or if id2 exists in hierarchy1
+            for (String id: hierarchy2) {
+            	if (id.equals(id1)) {
+            		return true;
+            	}
+            }
+            
+            for (String id: hierarchy1) {
+            	if (id.equals(id2)) {
+            		return true;
+            	}
+            }
+            
+            return false;
+            
+		} catch (Exception e) {
+        	throw new IOException (e);
+        }
+    	
+    }
     
     public Species getSpeciesByID (String id) throws IOException {
 		String apiUrl = ncbiFetchUrl + id;
@@ -255,13 +332,37 @@ public class PubmedUtil {
 		return results;
 	}
     
+    private static String replaceUmlaut(String input) {
+    	 
+        // replace all lower Umlauts
+        String output = input.replace("ü", "ue")
+                             .replace("ö", "oe")
+                             .replace("ä", "ae")
+                             .replace("ß", "ss");
+    
+        // first replace all capital Umlauts in a non-capitalized context (e.g. Übung)
+        output = output.replaceAll("Ü(?=[a-zäöüß ])", "Ue")
+                       .replaceAll("Ö(?=[a-zäöüß ])", "Oe")
+                       .replaceAll("Ä(?=[a-zäöüß ])", "Ae");
+    
+        // now replace all the other capital Umlauts
+        output = output.replace("Ü", "UE")
+                       .replace("Ö", "OE")
+                       .replace("Ä", "AE");
+    
+        return output;
+    }
+    
     public static void main(String[] args) {
     	try {
 			List<Publication> results = new PubmedUtil(null).getPublicationByTitle("Triterpenoid glycosides from Stauntonia hexaphylla");
 			for (Publication result: results) {
 				System.out.println (result.getTitle() + "\n" + result.getAuthor() + "\n" + result.getJournal());
 			}
-		} catch (IOException e) {
+			
+			Boolean result = new PubmedUtil(null).checkIfSameHierarchy("499", "500");
+			System.out.println ("They are in the same hierarchy? " + result);
+		} catch (IOException e) { 
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}

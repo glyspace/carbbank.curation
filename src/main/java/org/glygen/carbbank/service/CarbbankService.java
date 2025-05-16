@@ -42,10 +42,13 @@ import org.glygen.carbbank.dao.MappingOTRepository;
 import org.glygen.carbbank.dao.MappingPARepository;
 import org.glygen.carbbank.dao.MappingPMRepository;
 import org.glygen.carbbank.dao.MappingP_DRepository;
+import org.glygen.carbbank.dao.MappingSTRepository;
 import org.glygen.carbbank.dao.MappingTNRepository;
 import org.glygen.carbbank.dao.PARepository;
 import org.glygen.carbbank.dao.PMRepository;
 import org.glygen.carbbank.dao.PublicationRepository;
+import org.glygen.carbbank.dao.STPRepository;
+import org.glygen.carbbank.dao.STRepository;
 import org.glygen.carbbank.dao.TNRepository;
 import org.glygen.carbbank.model.AG;
 import org.glygen.carbbank.model.AM;
@@ -62,6 +65,7 @@ import org.glygen.carbbank.model.PA;
 import org.glygen.carbbank.model.PM;
 import org.glygen.carbbank.model.SC;
 import org.glygen.carbbank.model.ST;
+import org.glygen.carbbank.model.STParts;
 import org.glygen.carbbank.model.Species;
 import org.glygen.carbbank.model.TN;
 import org.glygen.carbbank.model.VR;
@@ -87,6 +91,7 @@ import org.glygen.carbbank.model.mapping.MappingOT;
 import org.glygen.carbbank.model.mapping.MappingPA;
 import org.glygen.carbbank.model.mapping.MappingPM;
 import org.glygen.carbbank.model.mapping.MappingP_D;
+import org.glygen.carbbank.model.mapping.MappingST;
 import org.glygen.carbbank.model.mapping.MappingTN;
 import org.glygen.carbbank.model.mapping.Publication;
 import org.glygen.carbbank.parser.PubmedUtil;
@@ -148,6 +153,9 @@ public class CarbbankService {
 	final private MappingPARepository mappingPARepository;
 	final private DBRepository dbRepository;
 	final private MappingDBRepository mappingDBRepository;
+	final private STRepository stRepository;
+	final private STPRepository stpRepository;
+	final private MappingSTRepository mappingSTRepository;
 	final private PublicationRepository publicationRepository;
 	final private BSRepository bsRepository;
 	final private MappingBSRepository mappingBSRepository;
@@ -184,7 +192,9 @@ public class CarbbankService {
 			MappingDiseaseRepository mappingDiseaseRepository, 
 			MappingCelllineRepository mappingCellineRepository, 
 			MappingCRepository mappingCRepository, MappingCNRepository mappingCNRepository, 
-			MappingBSRepository mappingBSRepository, BSRepository bsRepository) {
+			MappingBSRepository mappingBSRepository, BSRepository bsRepository, 
+			STRepository stRepository, MappingSTRepository mappingSTRepository, 
+			STPRepository stpRepository) {
 		this.carbbankRepository = carbbankRepository;
 		this.agRepository = agRepository;
 		this.mappingAGRepository = mappingAGRepository;
@@ -204,6 +214,9 @@ public class CarbbankService {
 		this.mappingPARepository = mappingPARepository;
 		this.dbRepository = dbRepository;
 		this.mappingDBRepository = mappingDBRepository;
+		this.stRepository = stRepository;
+		this.stpRepository = stpRepository;
+		this.mappingSTRepository = mappingSTRepository;
 		this.publicationRepository = publicationRepository;
 		this.bsRepository = bsRepository;
 		this.mappingBSRepository = mappingBSRepository;
@@ -236,6 +249,7 @@ public class CarbbankService {
     		for (Map.Entry<String, String> entry : record.entrySet()) {
     			String value = entry.getValue(); 
     			//value = value.replaceAll("'", "''");
+    			value = value.replace("\n", " ");
     			value = value.trim();
     			if (value.length() == 0) {
     				continue;    // skip the empty values
@@ -594,6 +608,54 @@ public class CarbbankService {
 			}
 		}
 		
+		c = mappingSTRepository.count();
+		if (c == 0) {
+			List<String> distinctValues = stRepository.findDistinctValue();
+			for (String name: distinctValues) {
+				long count = stRepository.countByValueIgnoreCase(name);
+				MappingST mapping = new MappingST();
+				mapping.setCount(Long.valueOf(count).intValue());
+				
+				if (name.toLowerCase().contains("synthetic")) {
+					name = name.substring(9); // get rid of synthetic
+					if (name.length() > 1) {
+						if (name.startsWith (",")) {
+							name = name.substring(1).trim();
+							String[] parts = name.split(",");
+							String species = parts[0];
+							mapping.setName(species);
+							mappingSTRepository.save(mapping);
+						}
+					}
+				}
+			}	
+		}
+		
+		c = stRepository.count();
+		if (c == 0) {
+			List<ST> allST = stRepository.findAll();
+			for (ST st: allST) {
+				String name = st.getValue();
+				if (name.toLowerCase().contains("synthetic")) {
+					name = name.substring(9); // get rid of synthetic
+					if (name.length() > 1) {
+						if (name.startsWith (",")) {
+							name = name.substring(1).trim();
+							String[] parts = name.split(",");
+							if (parts.length > 1) {
+								for (int i=1; i < parts.length; i++) {
+									STParts stP = new STParts();
+									stP.setSt(st);
+									stP.setValue(parts[i]);
+									stpRepository.save (stP);
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		
 		// create BS mappings
 		
 		c = mappingBSRepository.count();
@@ -633,11 +695,13 @@ public class CarbbankService {
 				if (name == null || name.isEmpty()) 
 					continue;
 				long count = bsRepository.countByCelllineIgnoreCase(name);
-				MappingCellLine mapping = new MappingCellLine();
-				mapping.setCount(Long.valueOf(count).intValue());
-				mapping.setName(name);
-				
-				mappingCellineRepository.save(mapping);
+				String[] split = name.split(",");
+				for (String n: split) {
+					MappingCellLine mapping = new MappingCellLine();
+					mapping.setCount(Long.valueOf(count).intValue());
+					mapping.setName(n.trim());
+					mappingCellineRepository.save(mapping);
+				}
 			}
 		}
 		
@@ -806,23 +870,28 @@ public class CarbbankService {
 			}
 		}
 		
-		Set<String> overlap = new HashSet<>();
+		//Set<String> overlap = new HashSet<>();
 		long pubCount = publicationRepository.count();
-		List<CarbbankRecord> records = carbbankRepository.findAll();
-		List <Publication> created = new ArrayList<>();
 		
-		for (CarbbankRecord record: records) {
+		/*for (CarbbankRecord record: records) {
 			if (record.getStList() != null && !record.getStList().isEmpty()) {
 				if (record.getBsList() != null && !record.getBsList().isEmpty()) {
 					overlap.add(record.getCC());
 				}
 			}
+		}*/
 		
-			if (pubCount == 0) {
+		if (pubCount == 0) {
+			List<CarbbankRecord> records = carbbankRepository.findAll();
+			List <Publication> created = new ArrayList<>();
+			for (CarbbankRecord record: records) {
 				if (record.getTI() != null) {
 					// create publications
 					Publication pub = new Publication();
-					pub.setTitle (record.getTI().replace("\n", " "));
+					String title = record.getTI();
+					title = title.replace("-\n", "-");
+					title = title.replace("\n", " ");
+					pub.setTitle (title);
 					pub.setAuthor(record.getAU());
 					pub.setJournal(record.getCT());
 					for (DB db: record.getDbList()) {
@@ -853,9 +922,9 @@ public class CarbbankService {
 			} 
 		}
 		
-		if (overlap.size() > 0) {
+	/*	if (overlap.size() > 0) {
 			logger.error("There is an overlap of ST and BS for records: " + overlap);
-		}
+		}*/
 	}
 	
 	public void addPMIDs () {
@@ -869,12 +938,30 @@ public class CarbbankService {
 				try {
 					if (pub.getChecked() == null || !pub.getChecked()) {
 						List<Publication> matches = util.getPublicationByTitle(pub.getTitle());
+						pub.setMatchCount(matches.size()+"");
 						if (!matches.isEmpty()) {
 							for (Publication m: matches) {
 								if (m.equals(pub)) {
 									pub.setPmid(m.getPmid());
-									//publicationRepository.save(pub);
 									break;
+								} else if (m.getTitle() != null && m.getTitle().equalsIgnoreCase(pub.getTitle())) {
+									pub.setMatchDetails("Title matched\n");
+									if (m.getAuthor() != null && m.getAuthor().equalsIgnoreCase(pub.getAuthor())) {
+										pub.setMatchDetails(pub.getMatchDetails() + "Authors matched\n");
+									} else {
+										pub.setMatchDetails(pub.getMatchDetails() + " Authors did not match: " + m.getAuthor() + "\n");
+									}
+									if (m.getJournal() != null && m.getJournal().equalsIgnoreCase(pub.getJournal())) {
+										pub.setMatchDetails(pub.getMatchDetails() + "Journal matched\n");
+									} else {
+										pub.setMatchDetails(pub.getMatchDetails() + " Journal did not match: " + m.getJournal() + "\n");
+									}
+									pub.setMatchDetails(pub.getMatchDetails().trim());
+								} 
+							}
+							if (pub.getPmid() == null) {
+								if (matches.size() == 1) {
+									pub.setMatchDetails("publication did not match: " + matches.get(0).toString());
 								}
 							}
 						}
@@ -930,19 +1017,39 @@ public class CarbbankService {
 		List<MappingBS_C> allC = mappingCRepository.findAll();
 		for (MappingBS_C bs: allC) {
 			try {
-				if (bs.getNamespaceName() == null) {
+				if (bs.getNamespaceName() == null && bs.getMatchCount() == null) {
 					List<Species> matches = util.getSpecies(bs.getName());
+					bs.setMatchCount(matches.size()+"");
 					if (!matches.isEmpty()) {
 						if (matches.size() > 1) {
-							logger.info("multiple matches for " + bs.getName());
+							// check the number of matches with "class" rank
+							List<Species> rankMatches = new ArrayList<>();
+							for (Species m: matches) {
+								if (m.getRank() != null && m.getRank().equalsIgnoreCase("class`")) {
+									rankMatches.add(m);
+								}
+							}
+							if (rankMatches.size() == 1) {
+								Species s = rankMatches.get(0);
+								if (!bs.getName().equalsIgnoreCase(s.getName())) {
+									bs.setMappingName(bs.getName());
+								}
+								bs.setNamespaceName(s.getName());
+								bs.setRank(s.getRank());
+								bs.setNamespaceId(s.getId());
+							}
 						} else {
 							Species s = matches.get(0);
+							if (!bs.getName().equalsIgnoreCase(s.getName())) {
+								bs.setMappingName(bs.getName());
+							}
 							bs.setNamespaceName(s.getName());
 							bs.setRank(s.getRank());
 							bs.setNamespaceId(s.getId());
-							mappingCRepository.save(bs);
+							
 						}
 					}
+					mappingCRepository.save(bs);
 				}
 				
 				try {
@@ -959,19 +1066,24 @@ public class CarbbankService {
 		List<MappingCN> allCN = mappingCNRepository.findAll();
 		for (MappingCN bs: allCN) {
 			try {
-				if (bs.getNamespaceName() == null) {
+				if (bs.getNamespaceName() == null && bs.getMatchCount() == null) {
 					List<Species> matches = util.getSpecies(bs.getName());
+					bs.setMatchCount(matches.size()+"");
 					if (!matches.isEmpty()) {
 						if (matches.size() > 1) {
 							logger.info("multiple matches for " + bs.getName());
 						} else {
 							Species s = matches.get(0);
+							if (!bs.getName().equalsIgnoreCase(s.getName())) {
+								bs.setMappingName(bs.getName());
+							}
 							bs.setNamespaceName(s.getName());
 							bs.setRank(s.getRank());
 							bs.setNamespaceId(s.getId());
-							mappingCNRepository.save(bs);
+							
 						}
 					}
+					mappingCNRepository.save(bs);
 				}
 				
 				try {
@@ -988,19 +1100,39 @@ public class CarbbankService {
 		List<MappingDomain> all = mappingDomainRepository.findAll();
 		for (MappingDomain bs: all) {
 			try {
-				if (bs.getNamespaceName() == null) {
+				if (bs.getNamespaceName() == null && bs.getMatchCount() == null) {
 					List<Species> matches = util.getSpecies(bs.getName());
+					bs.setMatchCount(matches.size()+"");
 					if (!matches.isEmpty()) {
 						if (matches.size() > 1) {
-							logger.info("multiple matches for " + bs.getName());
+							// check the number of matches with "domain" rank
+							List<Species> rankMatches = new ArrayList<>();
+							for (Species m: matches) {
+								if (m.getRank() != null && m.getRank().equalsIgnoreCase("domain")) {
+									rankMatches.add(m);
+								}
+							}
+							if (rankMatches.size() == 1) {
+								Species s = rankMatches.get(0);
+								if (!bs.getName().equalsIgnoreCase(s.getName())) {
+									bs.setMappingName(bs.getName());
+								}
+								bs.setNamespaceName(s.getName());
+								bs.setRank(s.getRank());
+								bs.setNamespaceId(s.getId());
+							}
 						} else {
 							Species s = matches.get(0);
+							if (!bs.getName().equalsIgnoreCase(s.getName())) {
+								bs.setMappingName(bs.getName());
+							}
 							bs.setNamespaceName(s.getName());
 							bs.setRank(s.getRank());
 							bs.setNamespaceId(s.getId());
-							mappingDomainRepository.save(bs);
+							
 						}
 					}
+					mappingDomainRepository.save(bs);
 				}
 				
 				try {
@@ -1017,19 +1149,39 @@ public class CarbbankService {
 		List<MappingF> allF = mappingFRepository.findAll();
 		for (MappingF bs: allF) {
 			try {
-				if (bs.getNamespaceName() == null) {
+				if (bs.getNamespaceName() == null && bs.getMatchCount() == null) {
 					List<Species> matches = util.getSpecies(bs.getName());
+					bs.setMatchCount(matches.size()+"");
 					if (!matches.isEmpty()) {
 						if (matches.size() > 1) {
-							logger.info("multiple matches for " + bs.getName());
+							// check the number of matches with "family" rank
+							List<Species> rankMatches = new ArrayList<>();
+							for (Species m: matches) {
+								if (m.getRank() != null && m.getRank().equalsIgnoreCase("family")) {
+									rankMatches.add(m);
+								}
+							}
+							if (rankMatches.size() == 1) {
+								Species s = rankMatches.get(0);
+								if (!bs.getName().equalsIgnoreCase(s.getName())) {
+									bs.setMappingName(bs.getName());
+								}
+								bs.setNamespaceName(s.getName());
+								bs.setRank(s.getRank());
+								bs.setNamespaceId(s.getId());
+							}
 						} else {
 							Species s = matches.get(0);
+							if (!bs.getName().equalsIgnoreCase(s.getName())) {
+								bs.setMappingName(bs.getName());
+							}
 							bs.setNamespaceName(s.getName());
 							bs.setRank(s.getRank());
 							bs.setNamespaceId(s.getId());
-							mappingFRepository.save(bs);
+							
 						}
 					}
+					mappingFRepository.save(bs);
 				}
 				
 				try {
@@ -1046,19 +1198,24 @@ public class CarbbankService {
 		List<MappingGS> allGS = mappingGSRepository.findAll();
 		for (MappingGS bs: allGS) {
 			try {
-				if (bs.getNamespaceName() == null) {
+				if (bs.getNamespaceName() == null && bs.getMatchCount() == null) {
 					List<Species> matches = util.getSpecies(bs.getName());
+					bs.setMatchCount(matches.size()+"");
 					if (!matches.isEmpty()) {
 						if (matches.size() > 1) {
 							logger.info("multiple matches for " + bs.getName());
 						} else {
 							Species s = matches.get(0);
+							if (!bs.getName().equalsIgnoreCase(s.getName())) {
+								bs.setMappingName(bs.getName());
+							}
 							bs.setNamespaceName(s.getName());
 							bs.setRank(s.getRank());
 							bs.setNamespaceId(s.getId());
-							mappingGSRepository.save(bs);
+							
 						}
 					}
+					mappingGSRepository.save(bs);
 				}
 				
 				try {
@@ -1075,19 +1232,39 @@ public class CarbbankService {
 		List<MappingK> allK = mappingKRepository.findAll();
 		for (MappingK bs: allK) {
 			try {
-				if (bs.getNamespaceName() == null) {
+				if (bs.getNamespaceName() == null && bs.getMatchCount() == null) {
 					List<Species> matches = util.getSpecies(bs.getName());
+					bs.setMatchCount(matches.size()+"");
 					if (!matches.isEmpty()) {
 						if (matches.size() > 1) {
-							logger.info("multiple matches for " + bs.getName());
+							// check the number of matches with "kingdom" rank
+							List<Species> rankMatches = new ArrayList<>();
+							for (Species m: matches) {
+								if (m.getRank() != null && m.getRank().equalsIgnoreCase("kingdom")) {
+									rankMatches.add(m);
+								}
+							}
+							if (rankMatches.size() == 1) {
+								Species s = rankMatches.get(0);
+								if (!bs.getName().equalsIgnoreCase(s.getName())) {
+									bs.setMappingName(bs.getName());
+								}
+								bs.setNamespaceName(s.getName());
+								bs.setRank(s.getRank());
+								bs.setNamespaceId(s.getId());
+							}
 						} else {
 							Species s = matches.get(0);
+							if (!bs.getName().equalsIgnoreCase(s.getName())) {
+								bs.setMappingName(bs.getName());
+							}
 							bs.setNamespaceName(s.getName());
 							bs.setRank(s.getRank());
 							bs.setNamespaceId(s.getId());
-							mappingKRepository.save(bs);
+							
 						}
 					}
+					mappingKRepository.save(bs);
 				}
 				
 				try {
@@ -1104,19 +1281,23 @@ public class CarbbankService {
 		List<MappingO> allO = mappingORepository.findAll();
 		for (MappingO bs: allO) {
 			try {
-				if (bs.getNamespaceName() == null) {
+				if (bs.getNamespaceName() == null && bs.getMatchCount() == null) {
 					List<Species> matches = util.getSpecies(bs.getName());
+					bs.setMatchCount(matches.size()+"");
 					if (!matches.isEmpty()) {
 						if (matches.size() > 1) {
 							logger.info("multiple matches for " + bs.getName());
 						} else {
 							Species s = matches.get(0);
+							if (!bs.getName().equalsIgnoreCase(s.getName())) {
+								bs.setMappingName(bs.getName());
+							}
 							bs.setNamespaceName(s.getName());
 							bs.setRank(s.getRank());
 							bs.setNamespaceId(s.getId());
-							mappingORepository.save(bs);
 						}
 					}
+					mappingORepository.save(bs);
 				}
 				
 				try {
@@ -1133,19 +1314,72 @@ public class CarbbankService {
 		List<MappingP_D> allpd = mappingP_DRepository.findAll();
 		for (MappingP_D bs: allpd) {
 			try {
-				if (bs.getNamespaceName() == null) {
+				if (bs.getNamespaceName() == null && bs.getMatchCount() == null) {
 					List<Species> matches = util.getSpecies(bs.getName());
+					bs.setMatchCount(matches.size()+"");
+					if (!matches.isEmpty()) {
+						if (matches.size() > 1) {
+							// check the number of matches with "phylum" rank
+							List<Species> rankMatches = new ArrayList<>();
+							for (Species m: matches) {
+								if (m.getRank() != null && m.getRank().equalsIgnoreCase("phylum")) {
+									rankMatches.add(m);
+								}
+							}
+							if (rankMatches.size() == 1) {
+								Species s = rankMatches.get(0);
+								if (!bs.getName().equalsIgnoreCase(s.getName())) {
+									bs.setMappingName(bs.getName());
+								}
+								bs.setNamespaceName(s.getName());
+								bs.setRank(s.getRank());
+								bs.setNamespaceId(s.getId());
+							}
+						} else {
+							Species s = matches.get(0);
+							if (!bs.getName().equalsIgnoreCase(s.getName())) {
+								bs.setMappingName(bs.getName());
+							}
+							bs.setNamespaceName(s.getName());
+							bs.setRank(s.getRank());
+							bs.setNamespaceId(s.getId());
+						}
+					}
+					mappingP_DRepository.save(bs);
+				}
+				
+				try {
+			        Thread.sleep(100); // wait 100 milliseconds between requests
+			    } catch (InterruptedException e) {
+			        Thread.currentThread().interrupt(); // restore interrupted status
+			    }
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		
+		List<MappingST> allst = mappingSTRepository.findAll();
+		for (MappingST bs: allst) {
+			try {
+				if (bs.getNamespaceName() == null && bs.getMatchCount() == null) {
+					List<Species> matches = util.getSpecies(bs.getName());
+					bs.setMatchCount(matches.size()+"");
 					if (!matches.isEmpty()) {
 						if (matches.size() > 1) {
 							logger.info("multiple matches for " + bs.getName());
 						} else {
 							Species s = matches.get(0);
+							if (!bs.getName().equalsIgnoreCase(s.getName())) {
+								bs.setMappingName(bs.getName());
+							}
 							bs.setNamespaceName(s.getName());
 							bs.setRank(s.getRank());
 							bs.setNamespaceId(s.getId());
-							mappingP_DRepository.save(bs);
+							
 						}
 					}
+					mappingSTRepository.save(bs);
 				}
 				
 				try {
@@ -1161,69 +1395,128 @@ public class CarbbankService {
 		
 		List<MappingDisease> allDisease = mappingDiseaseRepository.findAll();
 		for (MappingDisease d: allDisease) {
-			if (d.getNamespaceName() == null) {
+			if (d.getNamespaceName() == null && d.getMatchCount() == null) {
 				List<NamespaceEntry> matches = findCanonicalForm("doid-base.txt", d.getName());
+				d.setMatchCount(matches.size()+"");
 				if (!matches.isEmpty()) {
 					if (matches.size() > 1) {
 						logger.info("multiple matches for " + d.getName());
 					} else {
 						NamespaceEntry match = matches.get(0);
 						d.setNamespaceName(match.getLabel());
+						if (!d.getName().equalsIgnoreCase(match.getLabel())) {
+							d.setMappingName(d.getName());
+						}
 						if (match.getUri() != null) {
 							String id = match.getUri().substring(match.getUri().lastIndexOf("/")+1);
 							String[] split = id.split("_");
 							String namespaceId = split[0] + (split.length > 1 ? ":" + split[1] : "");
 							d.setNamespaceId(namespaceId);
 						}
-						mappingDiseaseRepository.save(d);
+						
 					}
 				}
+				mappingDiseaseRepository.save(d);
 			}
 		}
 		
 		List<MappingOT> allOT = mappingOTRepository.findAll();
 		for (MappingOT d: allOT) {
-			if (d.getNamespaceName() == null) {
+			if (d.getNamespaceName() == null && d.getMatchCount() == null) {
 				List<NamespaceEntry> matches = findCanonicalForm("uberon-base.txt", d.getName());
+				d.setMatchCount(matches.size()+"");
 				if (!matches.isEmpty()) {
 					if (matches.size() > 1) {
 						logger.info("multiple matches for " + d.getName());
 					} else {
 						NamespaceEntry match = matches.get(0);
 						d.setNamespaceName(match.getLabel());
+						if (!d.getName().equalsIgnoreCase(match.getLabel())) {
+							d.setMappingName(d.getName());
+						}
 						if (match.getUri() != null) {
 							String id = match.getUri().substring(match.getUri().lastIndexOf("/")+1);
 							String[] split = id.split("_");
 							String namespaceId = split[0] + (split.length > 1 ? ":" + split[1] : "");
 							d.setNamespaceId(namespaceId);
 						}
-						mappingOTRepository.save(d);
 					}
 				}
+				mappingOTRepository.save(d);
 			}
 		}
 		
 		List<MappingCellLine> allCellline = mappingCellineRepository.findAll();
 		for (MappingCellLine d: allCellline) {
-			if (d.getNamespaceName() == null) {
-				List<NamespaceEntry> matches = findCanonicalForm("cellline.txt.gz", d.getName());
+			if (d.getNamespaceName() == null && d.getMatchCount() == null) {
+				String search = d.getName();
+				if (d.getName().endsWith("cells") || d.getName().endsWith("cell")) {
+					search = d.getName().substring(0, d.getName().lastIndexOf("cell")).trim();
+				}
+				List<NamespaceEntry> matches = findCanonicalForm("cellline.txt.gz", search);
+				d.setMatchCount(matches.size()+"");
 				if (!matches.isEmpty()) {
 					if (matches.size() > 1) {
 						logger.info("multiple matches for " + d.getName());
 					} else {
 						NamespaceEntry match = matches.get(0);
 						d.setNamespaceName(match.getLabel());
+						if (!d.getName().equalsIgnoreCase(match.getLabel())) {
+							d.setMappingName(search);
+						}
 						if (match.getUri() != null) {
 							String id = match.getUri().substring(match.getUri().lastIndexOf("/")+1);
 							String[] split = id.split("_");
 							String namespaceId = split[0] + (split.length > 1 ? ":" + split[1] : "");
 							d.setNamespaceId(namespaceId);
 						}
-						mappingCellineRepository.save(d);
+						
+					}
+				}
+				mappingCellineRepository.save(d);
+			}
+		}
+	}
+	
+	public void findConflictsInSpecies () {
+		PubmedUtil util = new PubmedUtil(apiKey);
+		List<BS> bsRows = bsRepository.findAll();
+		List<String> conflictList = new ArrayList<>();
+		for (BS bs: bsRows) {
+			if (bs.getCn() != null && bs.getGs() != null) {
+				List<MappingCN> mappingCN = mappingCNRepository.findByNameEqualsIgnoreCase(bs.getCn());
+				if (mappingCN.isEmpty()) {
+					logger.error("cannot find the mapping entry for CN: " + bs.getCn());
+					continue;
+				}
+				List<MappingGS> mappingGS = mappingGSRepository.findByNameEqualsIgnoreCase(bs.getGs());
+				if (mappingGS.isEmpty()) {
+					logger.error("cannot find the mapping entry for GS: " + bs.getGs());
+					continue;
+				}
+				
+				if (mappingCN.get(0).getNamespaceId() != null && mappingGS.get(0).getNamespaceId() != null) {
+					if (!mappingCN.get(0).getNamespaceId().equals(mappingGS.get(0).getNamespaceId())) {
+						// we have a conflict
+						try {
+							Boolean same = util.checkIfSameHierarchy(mappingCN.get(0).getNamespaceId(), mappingGS.get(0).getNamespaceId());
+							if (!same) {
+								conflictList.add(bs.getRecord().getCC());
+							}
+							
+							try {
+						        Thread.sleep(100); // wait 100 milliseconds between requests
+						    } catch (InterruptedException e) {
+						        Thread.currentThread().interrupt(); // restore interrupted status
+						    }
+						} catch (IOException e) {
+							logger.error("Failed to check hierarchy", e);
+						}
 					}
 				}
 			}
 		}
+		logger.info("Conflicting CN and GS:" + conflictList);
 	}
 	
 	

@@ -63,6 +63,8 @@ public class CarbbankUtil {
                     if (currentKey != null) {
                     	if (currentKey.equals("structure")) {
                     		currentRecord.put(currentKey, currentValue.toString());
+                    	} else if (currentKey.equals("BS")) {
+                    		parseMultiField(currentRecord, currentKey, currentValue.toString(), subKeyIndexMap.get("BS"));
                     	} else {
                     		currentRecord.put(currentKey, currentValue.toString().trim());
                     	}
@@ -78,9 +80,6 @@ public class CarbbankUtil {
                         if (noTrim) currentValue.append(parts[1]);
                         else currentValue.append(parts[1].trim());
                         if (currentKey.startsWith("BS")) {
-                    		parseMultiField(currentRecord, currentKey, currentValue.toString(), subKeyIndexMap.get("BS"));
-	                        currentKey = null;
-	                        currentValue.setLength(0);
 	                        if (subKeyIndexMap.get("BS") == -1) subKeyIndexMap.put ("BS", 2);
 	                		else subKeyIndexMap.put("BS", subKeyIndexMap.get("BS") + 1);
                     	} 
@@ -105,11 +104,15 @@ public class CarbbankUtil {
 
     
     private static void parseMultiField(Map<String, String> record, String key, String value, Integer subKeyIndex) {
-    	String[] subEntries = value.split(", ");
+    	value = value.replace("\n", " ");
+    	String[] subEntries = value.split(", \\(");
     	for (String subEntry : subEntries) {
     		int startIndex = subEntry.indexOf('(');
     		int endIndex = subEntry.indexOf(')');
-    		if (startIndex != -1 && endIndex != -1) {
+    		if (endIndex < startIndex+1) {
+    			System.out.println ("Error: " + subEntry);
+    		} else {
+    		if (endIndex != -1) {
     			String sub2 = subEntry.substring(startIndex + 1, endIndex);
     			if (sub2.equals("*")) {
     				sub2 = "star";
@@ -121,6 +124,7 @@ public class CarbbankUtil {
     			} else {
     				record.put(subKey, subValue);
     			}
+    		}
     		}
     	}
     }

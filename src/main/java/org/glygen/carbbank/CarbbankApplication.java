@@ -47,10 +47,11 @@ public class CarbbankApplication {
 	    	}
 	    } else {
 	    	// do not parse the file, only work on the mappings
-	    	service.createMappingTables();
-	    	service.addBSInformation();
+	    	//service.createMappingTables();
+	    	//service.addBSInformation();
 	    	service.findConflictsInSpecies();
-	    	service.addPMIDs();
+	    	service.generateExcelFiles();
+	    	//service.addPMIDs();
 	    }
 	}
 

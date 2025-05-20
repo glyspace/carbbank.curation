@@ -51,5 +51,18 @@ public interface BSRepository extends JpaRepository<BS, Long> {
 	long countByOIgnoreCase (String name);
 	long countByOtIgnoreCase (String name);
 	long countByPdIgnoreCase (String name);
+	
+	List<BS> findByGsIgnoreCase (String name);
+	List<BS> findByCelllineIgnoreCase (String name);
+	List<BS> findByCnIgnoreCase (String name);
+	List<BS> findByDiseaseIgnoreCase (String name);
+	List<BS> findByDomainIgnoreCase (String name);
+	List<BS> findByFIgnoreCase (String name);
+	List<BS> findByGtIgnoreCase (String name);
+	List<BS> findByKIgnoreCase (String name);
+	List<BS> findByLsIgnoreCase (String name);
+	List<BS> findByOIgnoreCase (String name);
+	List<BS> findByOtIgnoreCase (String name);
+	List<BS> findByPdIgnoreCase (String name);
 
 }

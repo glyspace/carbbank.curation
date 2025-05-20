@@ -1,5 +1,6 @@
 package org.glygen.carbbank.service;
 
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -11,6 +12,14 @@ import java.util.Set;
 import java.util.Map.Entry;
 
 import org.apache.commons.collections4.trie.PatriciaTrie;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.Picture;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFFont;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.glygen.carbbank.NamespaceHandler;
 import org.glygen.carbbank.dao.AGRepository;
 import org.glygen.carbbank.dao.AMRepository;
@@ -1481,42 +1490,135 @@ public class CarbbankService {
 	public void findConflictsInSpecies () {
 		PubmedUtil util = new PubmedUtil(apiKey);
 		List<BS> bsRows = bsRepository.findAll();
-		List<String> conflictList = new ArrayList<>();
+		List<String[]> conflictList = new ArrayList<>();
+		String[] header = {"BS_CN", "BS_CN Namespace Id", "BS_CN Namespace Name", "BS_CN_Rank", "BS_GS", "BS_GS Namespace Id", "BS_GS Namespace Name", "BS_GS Rank", "Common Parent", "Common Parent ID", "Common Parent Rank"};
+		conflictList.add(header);
+		Set<String> processed = new HashSet<>();
 		for (BS bs: bsRows) {
 			if (bs.getCn() != null && bs.getGs() != null) {
-				List<MappingCN> mappingCN = mappingCNRepository.findByNameEqualsIgnoreCase(bs.getCn());
-				if (mappingCN.isEmpty()) {
-					logger.error("cannot find the mapping entry for CN: " + bs.getCn());
-					continue;
-				}
-				List<MappingGS> mappingGS = mappingGSRepository.findByNameEqualsIgnoreCase(bs.getGs());
-				if (mappingGS.isEmpty()) {
-					logger.error("cannot find the mapping entry for GS: " + bs.getGs());
-					continue;
-				}
-				
-				if (mappingCN.get(0).getNamespaceId() != null && mappingGS.get(0).getNamespaceId() != null) {
-					if (!mappingCN.get(0).getNamespaceId().equals(mappingGS.get(0).getNamespaceId())) {
-						// we have a conflict
-						try {
-							Boolean same = util.checkIfSameHierarchy(mappingCN.get(0).getNamespaceId(), mappingGS.get(0).getNamespaceId());
-							if (!same) {
-								conflictList.add(bs.getRecord().getCC());
-							}
-							
+				if (!processed.contains(bs.getCn()+ "-" + bs.getGs())) {
+					processed.add(bs.getCn()+ "-" + bs.getGs());
+					List<MappingCN> mappingCN = mappingCNRepository.findByNameEqualsIgnoreCase(bs.getCn());
+					if (mappingCN.isEmpty()) {
+						logger.error("cannot find the mapping entry for CN: " + bs.getCn());
+						continue;
+					}
+					List<MappingGS> mappingGS = mappingGSRepository.findByNameEqualsIgnoreCase(bs.getGs());
+					if (mappingGS.isEmpty()) {
+						logger.error("cannot find the mapping entry for GS: " + bs.getGs());
+						continue;
+					}
+					
+					if (mappingCN.get(0).getNamespaceId() != null && mappingGS.get(0).getNamespaceId() != null) {
+						if (!mappingCN.get(0).getNamespaceId().equals(mappingGS.get(0).getNamespaceId())) {
+							// we have a conflict
 							try {
-						        Thread.sleep(100); // wait 100 milliseconds between requests
-						    } catch (InterruptedException e) {
-						        Thread.currentThread().interrupt(); // restore interrupted status
-						    }
-						} catch (IOException e) {
-							logger.error("Failed to check hierarchy", e);
+								/*Boolean same = util.checkIfSameHierarchy(mappingCN.get(0).getNamespaceId(), mappingGS.get(0).getNamespaceId());
+								
+								try {
+							        Thread.sleep(100); // wait 100 milliseconds between requests
+							    } catch (InterruptedException e) {
+							        Thread.currentThread().interrupt(); // restore interrupted status
+							    }
+								
+								if (!same) {*/
+									String[] row = new String[12];
+									row[0] = bs.getRecord().getCC();
+									row[1] = mappingCN.get(0).getName();
+									row[2] = mappingCN.get(0).getNamespaceId();
+									row[3] = mappingCN.get(0).getNamespaceName();
+									row[4] = mappingCN.get(0).getRank();
+									row[5] = mappingGS.get(0).getName();
+									row[6] = mappingGS.get(0).getNamespaceId();
+									row[7] = mappingGS.get(0).getNamespaceName();
+									row[8] = mappingGS.get(0).getRank();
+									// find common ancestor if exists
+									Species common = util.findCommonAncestor(mappingCN.get(0).getNamespaceId(), mappingGS.get(0).getNamespaceId());
+									if (common != null) {
+										row[9] = common.getName();
+										row[10] = common.getId();
+										row[11] = common.getRank();
+									}
+									
+									conflictList.add(row);
+								//} 
+								
+								try {
+							        Thread.sleep(100); // wait 100 milliseconds between requests
+							    } catch (InterruptedException e) {
+							        Thread.currentThread().interrupt(); // restore interrupted status
+							    }
+							} catch (IOException e) {
+								logger.error("Failed to check hierarchy", e);
+							}
 						}
 					}
 				}
 			}
 		}
-		logger.info("Conflicting CN and GS:" + conflictList);
+		logger.info("Conflicting CN and GS:" + conflictList.size());
+		try {
+			writeToExcel(conflictList, "CN_GS_Conflicts.xlsx");
+		} catch (IOException e) {
+			logger.error("Failed to write excel file for CN/GS conflicts", e);
+		}
+		
+	}
+	
+	public void generateExcelFiles () {
+		List<String[]> rows = new ArrayList<>();
+		List<MappingCN> allRows = mappingCNRepository.findAll();
+		String[] header = {"ID", "count", "name", "namespacename", "namespaceid", "mappingname", "rank", "records-CC"};
+		rows.add(header);
+		for (MappingCN m: allRows) {
+			try {
+				if (m.getNamespaceName() == null) {
+					String[] row = new String[8];
+					row[0] = m.getId()+"";
+					row[1] = m.getCount()+ "";
+					row[2] = m.getName();
+					// find records with this value
+					List<BS> bsList = bsRepository.findByCnIgnoreCase(m.getName());
+					String recordList = "";
+					for (BS bs: bsList) {
+						recordList += bs.getRecord().getCC() + ", ";
+					}
+					row[7] = recordList.toString();
+					rows.add(row);
+				}
+				writeToExcel (rows, "mapping_BS_CN.xlsx");
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		
+		rows = new ArrayList<>();
+		List<MappingGS> allGS = mappingGSRepository.findAll();
+		String[] header2 = {"ID", "count", "name", "namespacename", "namespaceid", "mappingname", "rank", "records-CC"};
+		rows.add(header2);
+		for (MappingGS m: allGS) {
+			try {
+				if (m.getNamespaceName() == null) {
+					String[] row = new String[8];
+					row[0] = m.getId()+"";
+					row[1] = m.getCount()+ "";
+					row[2] = m.getName();
+					// find records with this value
+					List<BS> bsList = bsRepository.findByGsIgnoreCase(m.getName());
+					String recordList = "";
+					for (BS bs: bsList) {
+						recordList += bs.getRecord().getCC() + ", ";
+					}
+					row[7] = recordList.toString();
+					rows.add(row);
+				}
+				writeToExcel (rows, "mapping_BS_GS.xlsx");
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
 	}
 	
 	
@@ -1536,6 +1638,47 @@ public class CarbbankService {
 		}
 		
 		return matches;
+	}
+	
+	public void writeToExcel (List<String[]> rows, String filename) throws IOException {
+		FileOutputStream excelWriter = new FileOutputStream(filename);
+		Workbook workbook = new XSSFWorkbook();
+		
+        XSSFFont font= (XSSFFont) workbook.createFont();
+        font.setBold(true);
+        font.setItalic(false);
+        CellStyle boldStyle = workbook.createCellStyle();
+        boldStyle.setFont(font);
+        
+        Sheet sheet = workbook.createSheet("Mappings");
+        CellStyle wrapTextStyle = workbook.createCellStyle();
+        wrapTextStyle.setWrapText(true);
+        
+        // first row is the header row
+        if (rows.size() > 0) {
+        	String[] headerRow = rows.get(0);
+        	Row header = sheet.createRow(0);
+        	int i=0;
+        	for (String col: headerRow) {
+        		Cell cell = header.createCell(i++);
+        		cell.setCellValue(col);
+        		cell.setCellStyle(boldStyle);
+        	}
+        	
+        	for (i=1; i< rows.size(); i++) {
+        		String[] row = rows.get(i);
+        		Row entry = sheet.createRow(i);
+        		int j=0;
+        		for (String col: row) {
+        			Cell cell = entry.createCell(j++);
+        			cell.setCellStyle(wrapTextStyle);
+    				cell.setCellValue(col);
+        		}
+        	}
+        }
+        workbook.write(excelWriter);
+        excelWriter.close();
+        workbook.close();
 	}
 	
 }

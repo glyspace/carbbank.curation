@@ -179,6 +179,122 @@ public class PubmedUtil {
 	    return null;
 	}
     
+    public Species findCommonAncestor (String id1, String id2) throws IOException {
+    	String apiUrl = ncbiFetchUrl + id1;
+		if (apiKey != null) {
+			apiUrl += "&api_key=" + apiKey;
+		}
+		
+		List<Species> hierarchy1 = new ArrayList<>();
+		List<Species> hierarchy2 = new ArrayList<>();
+		try {
+            URL url = new URL(apiUrl);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+
+            InputStream inputStream = conn.getInputStream();
+
+            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            DocumentBuilder builder = factory.newDocumentBuilder();
+            Document doc = builder.parse(inputStream);
+            
+            
+            NodeList lineageList = doc.getElementsByTagName("LineageEx");
+            if (lineageList.getLength() > 0) {
+                Element lineage = (Element) lineageList.item(0);
+                NodeList taxonList = lineage.getElementsByTagName("Taxon");
+                
+                for (int i=0; i < taxonList.getLength(); i++) {
+                	Element taxon = (Element) taxonList.item(i);
+                	NodeList idList = taxon.getElementsByTagName("TaxId");
+                	NodeList nameList = taxon.getElementsByTagName("ScientificName");
+                	NodeList rankList = taxon.getElementsByTagName("Rank");
+                	Species species = new Species();
+                	species.setName(nameList.item(0).getTextContent());
+                	species.setRank(rankList.item(0).getTextContent());
+                	species.setId(idList.item(0).getTextContent());
+                	hierarchy1.add(species);
+                }
+            }
+            
+            try {
+		        Thread.sleep(100); // wait 100 milliseconds between requests
+		    } catch (InterruptedException e) {
+		        Thread.currentThread().interrupt(); // restore interrupted status
+		    }
+            
+            apiUrl = ncbiFetchUrl + id2;
+    		if (apiKey != null) {
+    			apiUrl += "&api_key=" + apiKey;
+    		}
+            url = new URL(apiUrl);
+            conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+
+            inputStream = conn.getInputStream();
+
+            factory = DocumentBuilderFactory.newInstance();
+            builder = factory.newDocumentBuilder();
+            doc = builder.parse(inputStream);
+            
+            
+            lineageList = doc.getElementsByTagName("LineageEx");
+            if (lineageList.getLength() > 0) {
+                Element lineage = (Element) lineageList.item(0);
+                NodeList taxonList = lineage.getElementsByTagName("Taxon");
+                
+                for (int i=0; i < taxonList.getLength(); i++) {
+                	Element taxon = (Element) taxonList.item(i);
+                	NodeList idList = taxon.getElementsByTagName("TaxId");
+                	NodeList nameList = taxon.getElementsByTagName("ScientificName");
+                	NodeList rankList = taxon.getElementsByTagName("Rank");
+                	Species species = new Species();
+                	species.setName(nameList.item(0).getTextContent());
+                	species.setRank(rankList.item(0).getTextContent());
+                	species.setId(idList.item(0).getTextContent());
+                	hierarchy2.add(species);
+                }
+            }
+            
+            // check if id1 exists in hierarchy2 or if id2 exists in hierarchy1
+            for (Species s: hierarchy2) {
+            	if (s.getId().equals(id1)) {
+            		return s;
+            	}
+            }
+            
+            for (Species s: hierarchy1) {
+            	if (s.getId().equals(id2)) {
+            		return s;
+            	}
+            }
+            
+            // if not in each other's hierarchy, find the first common one
+            for (int i = hierarchy1.size() -1; i >= 0; i--) {
+            	Species sp1 = hierarchy1.get(i);
+            	for (Species sp2: hierarchy2) {
+                	if (sp1.getId().equals(sp2.getId())) {
+                		return sp1;
+                	}
+                }
+            }
+            
+            // if not in each other's hierarchy, find the first common one
+            for (int i = hierarchy2.size() -1; i >= 0; i--) {
+            	Species sp1 = hierarchy2.get(i);
+            	for (Species sp2: hierarchy1) {
+                	if (sp1.getId().equals(sp2.getId())) {
+                		return sp1;
+                	}
+                }
+            }
+            
+            return null;
+		} catch (Exception e) {
+        	throw new IOException (e);
+        }
+    }
+    
     public boolean checkIfSameHierarchy  (String id1, String id2) throws IOException {
     	String apiUrl = ncbiFetchUrl + id1;
 		if (apiKey != null) {
@@ -209,6 +325,12 @@ public class PubmedUtil {
                 	hierarchy1.add(taxId.getTextContent());
                 }
             }
+            
+            try {
+		        Thread.sleep(100); // wait 100 milliseconds between requests
+		    } catch (InterruptedException e) {
+		        Thread.currentThread().interrupt(); // restore interrupted status
+		    }
             
             apiUrl = ncbiFetchUrl + id2;
     		if (apiKey != null) {
@@ -248,6 +370,8 @@ public class PubmedUtil {
             		return true;
             	}
             }
+            
+            
             
             return false;
             
@@ -360,8 +484,24 @@ public class PubmedUtil {
 				System.out.println (result.getTitle() + "\n" + result.getAuthor() + "\n" + result.getJournal());
 			}
 			
+			try {
+		        Thread.sleep(500); // wait 100 milliseconds between requests
+		    } catch (InterruptedException e) {
+		        Thread.currentThread().interrupt(); // restore interrupted status
+		    }
+			
 			Boolean result = new PubmedUtil(null).checkIfSameHierarchy("499", "500");
 			System.out.println ("They are in the same hierarchy? " + result);
+			
+			try {
+		        Thread.sleep(500); // wait 100 milliseconds between requests
+		    } catch (InterruptedException e) {
+		        Thread.currentThread().interrupt(); // restore interrupted status
+		    }
+			
+			Species species = new PubmedUtil(null).findCommonAncestor("4498", "50455");
+			if (species != null)
+				System.out.println ("Common parent: " + species.getName() + " id: "+ species.getId() + " rank: " + species.getRank());
 		} catch (IOException e) { 
 			// TODO Auto-generated catch block
 			e.printStackTrace();

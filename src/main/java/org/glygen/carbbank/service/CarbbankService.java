@@ -12,8 +12,13 @@ import java.util.Set;
 import java.util.Map.Entry;
 
 import org.apache.commons.collections4.trie.PatriciaTrie;
+import org.apache.poi.common.usermodel.HyperlinkType;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.CreationHelper;
+import org.apache.poi.ss.usermodel.Font;
+import org.apache.poi.ss.usermodel.Hyperlink;
+import org.apache.poi.ss.usermodel.IndexedColors;
 import org.apache.poi.ss.usermodel.Picture;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -900,8 +905,13 @@ public class CarbbankService {
 					String title = record.getTI();
 					title = title.replace("-\n", "-");
 					title = title.replace("\n", " ");
-					pub.setTitle (title);
-					pub.setAuthor(record.getAU());
+					pub.setTitle (title.trim());
+					String author = record.getAU();
+					if (author != null) {
+						author = author.replace("-\n", "-");
+						author = author.replace("\n", " ");
+						pub.setAuthor(author.trim());
+					}
 					pub.setJournal(record.getCT());
 					for (DB db: record.getDbList()) {
 						if (db.getValue().toLowerCase().startsWith("pmid")) {
@@ -954,24 +964,38 @@ public class CarbbankService {
 									pub.setPmid(m.getPmid());
 									break;
 								} else if (m.getTitle() != null && m.getTitle().equalsIgnoreCase(pub.getTitle())) {
-									pub.setMatchDetails("Title matched\n");
+									pub.setMatchDetails("Title matched, ");
 									if (m.getAuthor() != null && m.getAuthor().equalsIgnoreCase(pub.getAuthor())) {
-										pub.setMatchDetails(pub.getMatchDetails() + "Authors matched\n");
+										pub.setMatchDetails(pub.getMatchDetails() + "Authors matched, ");
 									} else {
-										pub.setMatchDetails(pub.getMatchDetails() + " Authors did not match: " + m.getAuthor() + "\n");
+										pub.setMatchDetails(pub.getMatchDetails() + " Authors did not match: " + m.getAuthor() + ", ");
 									}
 									if (m.getJournal() != null && m.getJournal().equalsIgnoreCase(pub.getJournal())) {
-										pub.setMatchDetails(pub.getMatchDetails() + "Journal matched\n");
+										pub.setMatchDetails(pub.getMatchDetails() + "Journal matched, ");
 									} else {
-										pub.setMatchDetails(pub.getMatchDetails() + " Journal did not match: " + m.getJournal() + "\n");
+										pub.setMatchDetails(pub.getMatchDetails() + " Journal did not match: " + m.getJournal() + ", ");
 									}
 									pub.setMatchDetails(pub.getMatchDetails().trim());
 								} 
 							}
 							if (pub.getPmid() == null) {
 								if (matches.size() == 1) {
-									pub.setMatchDetails("publication did not match: " + matches.get(0).toString());
-								}
+									Publication m = matches.get(0);
+									if (m.getTitle() != null && m.getTitle().equalsIgnoreCase(pub.getTitle())) {
+										pub.setMatchDetails("Title matched, ");
+										if (m.getAuthor() != null && m.getAuthor().equalsIgnoreCase(pub.getAuthor())) {
+											pub.setMatchDetails(pub.getMatchDetails() + "Authors matched, ");
+										} else {
+											pub.setMatchDetails(pub.getMatchDetails() + " Authors did not match: " + m.getAuthor() + ",");
+										}
+										if (m.getJournal() != null && m.getJournal().equalsIgnoreCase(pub.getJournal())) {
+											pub.setMatchDetails(pub.getMatchDetails() + "Journal matched, ");
+										} else {
+											pub.setMatchDetails(pub.getMatchDetails() + " Journal did not match: " + m.getJournal() + ", ");
+										}
+										pub.setMatchDetails(pub.getMatchDetails().trim());
+									}
+								} 
 							}
 						}
 						pub.setChecked(true);
@@ -1558,7 +1582,7 @@ public class CarbbankService {
 		}
 		logger.info("Conflicting CN and GS:" + conflictList.size());
 		try {
-			writeToExcel(conflictList, "CN_GS_Conflicts.xlsx");
+			writeToExcel(conflictList, "CN_GS_Conflicts.xlsx", null);
 		} catch (IOException e) {
 			logger.error("Failed to write excel file for CN/GS conflicts", e);
 		}
@@ -1566,58 +1590,270 @@ public class CarbbankService {
 	}
 	
 	public void generateExcelFiles () {
+		
+		// CN mappings
 		List<String[]> rows = new ArrayList<>();
 		List<MappingCN> allRows = mappingCNRepository.findAll();
-		String[] header = {"ID", "count", "name", "namespacename", "namespaceid", "mappingname", "rank", "records-CC"};
+		Map<Long, List<String>> recordMap = new HashMap<>();
+		String[] header = {"ID", "count", "name", "namespacename", "namespaceid", "mappingname", "rank"};
 		rows.add(header);
 		for (MappingCN m: allRows) {
-			try {
-				if (m.getNamespaceName() == null) {
-					String[] row = new String[8];
-					row[0] = m.getId()+"";
-					row[1] = m.getCount()+ "";
-					row[2] = m.getName();
-					// find records with this value
-					List<BS> bsList = bsRepository.findByCnIgnoreCase(m.getName());
-					String recordList = "";
-					for (BS bs: bsList) {
-						recordList += bs.getRecord().getCC() + ", ";
+			if (m.getNamespaceName() == null) {
+				String[] row = new String[7];
+				row[0] = m.getId()+"";
+				row[1] = m.getCount()+ "";
+				row[2] = m.getName();
+				// find records with this value
+				List<BS> bsList = bsRepository.findByCnIgnoreCase(m.getName());
+				Set<String> recordList = new HashSet<>();
+				for (BS bs: bsList) {
+					String cc = bs.getRecord().getCC();
+					if (cc != null && cc.contains(":")) {
+						cc = cc.substring(cc.indexOf(":") + 1);
 					}
-					row[7] = recordList.toString();
-					rows.add(row);
+					recordList.add(cc);
 				}
-				writeToExcel (rows, "mapping_BS_CN.xlsx");
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				recordMap.put(m.getId(), new ArrayList<>(recordList));
+				rows.add(row);
+			}
+		}
+		List<String[]> recordRows = new ArrayList<>();
+		String[] rHeader = {"ID", "CC Number"};
+		recordRows.add(rHeader);
+		for (Long id: recordMap.keySet()) {
+			List<String> records = recordMap.get(id);
+			for (String cc: records) {
+				String[] row = new String[2];
+				row[0] = id+"";
+				row[1] = cc;
+				recordRows.add(row);
+			}
+		}
+		try {
+			writeToExcel (rows, "mapping_BS_CN.xlsx", recordRows);
+		} catch (IOException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+		
+		// GS Mappings
+		recordMap = new HashMap<>();
+		rows = new ArrayList<>();
+		List<MappingGS> allGS = mappingGSRepository.findAll();
+		rows.add(header);
+		for (MappingGS m: allGS) {
+			if (m.getNamespaceName() == null) {
+				String[] row = new String[7];
+				row[0] = m.getId()+"";
+				row[1] = m.getCount()+ "";
+				row[2] = m.getName();
+				// find records with this value
+				List<BS> bsList = bsRepository.findByGsIgnoreCase(m.getName());
+				Set<String> recordList = new HashSet<>();
+				for (BS bs: bsList) {
+					String cc = bs.getRecord().getCC();
+					if (cc != null && cc.contains(":")) {
+						cc = cc.substring(cc.indexOf(":") + 1);
+					}
+					recordList.add(cc);
+				}
+				recordMap.put(m.getId(), new ArrayList<>(recordList));
+				rows.add(row);
 			}
 		}
 		
-		rows = new ArrayList<>();
-		List<MappingGS> allGS = mappingGSRepository.findAll();
-		String[] header2 = {"ID", "count", "name", "namespacename", "namespaceid", "mappingname", "rank", "records-CC"};
-		rows.add(header2);
-		for (MappingGS m: allGS) {
-			try {
-				if (m.getNamespaceName() == null) {
-					String[] row = new String[8];
-					row[0] = m.getId()+"";
-					row[1] = m.getCount()+ "";
-					row[2] = m.getName();
-					// find records with this value
-					List<BS> bsList = bsRepository.findByGsIgnoreCase(m.getName());
-					String recordList = "";
-					for (BS bs: bsList) {
-						recordList += bs.getRecord().getCC() + ", ";
-					}
-					row[7] = recordList.toString();
-					rows.add(row);
-				}
-				writeToExcel (rows, "mapping_BS_GS.xlsx");
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+		recordRows = new ArrayList<>();
+		recordRows.add(rHeader);
+		for (Long id: recordMap.keySet()) {
+			List<String> records = recordMap.get(id);
+			for (String cc: records) {
+				String[] row = new String[2];
+				row[0] = id+"";
+				row[1] = cc;
+				recordRows.add(row);
 			}
+		}
+		try {
+			writeToExcel (rows, "mapping_BS_GS.xlsx", recordRows);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		// disease
+		recordMap = new HashMap<>();
+		rows = new ArrayList<>();
+		List<MappingDisease> allDisease = mappingDiseaseRepository.findAll();
+		rows.add(header);
+		for (MappingDisease m: allDisease) {
+			if (m.getNamespaceName() == null) {
+				String[] row = new String[7];
+				row[0] = m.getId()+"";
+				row[1] = m.getCount()+ "";
+				row[2] = m.getName();
+				// find records with this value
+				List<BS> bsList = bsRepository.findByDiseaseIgnoreCase(m.getName());
+				Set<String> recordList = new HashSet<>();
+				for (BS bs: bsList) {
+					String cc = bs.getRecord().getCC();
+					if (cc != null && cc.contains(":")) {
+						cc = cc.substring(cc.indexOf(":") + 1);
+					}
+					recordList.add(cc);
+				}
+				recordMap.put(m.getId(), new ArrayList<>(recordList));
+				rows.add(row);
+			}
+		}
+		
+		recordRows = new ArrayList<>();
+		recordRows.add(rHeader);
+		for (Long id: recordMap.keySet()) {
+			List<String> records = recordMap.get(id);
+			for (String cc: records) {
+				String[] row = new String[2];
+				row[0] = id+"";
+				row[1] = cc;
+				recordRows.add(row);
+			}
+		}
+		try {
+			writeToExcel (rows, "mapping_BS_Disease.xlsx", recordRows);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		// Cell line
+		recordMap = new HashMap<>();
+		rows = new ArrayList<>();
+		List<MappingCellLine> allCell = mappingCellineRepository.findAll();
+		rows.add(header);
+		for (MappingCellLine m: allCell) {
+			if (m.getNamespaceName() == null) {
+				String[] row = new String[7];
+				row[0] = m.getId()+"";
+				row[1] = m.getCount()+ "";
+				row[2] = m.getName();
+				// find records with this value
+				List<BS> bsList = bsRepository.findByCelllineIgnoreCase(m.getName());
+				Set<String> recordList = new HashSet<>();
+				for (BS bs: bsList) {
+					String cc = bs.getRecord().getCC();
+					if (cc != null && cc.contains(":")) {
+						cc = cc.substring(cc.indexOf(":") + 1);
+					}
+					recordList.add(cc);
+				}
+				recordMap.put(m.getId(), new ArrayList<>(recordList));
+				rows.add(row);
+			}
+		}
+		
+		recordRows = new ArrayList<>();
+		recordRows.add(rHeader);
+		for (Long id: recordMap.keySet()) {
+			List<String> records = recordMap.get(id);
+			for (String cc: records) {
+				String[] row = new String[2];
+				row[0] = id+"";
+				row[1] = cc;
+				recordRows.add(row);
+			}
+		}
+		try {
+			writeToExcel (rows, "mapping_BS_Cellline.xlsx", recordRows);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		// Tissue
+		recordMap = new HashMap<>();
+		rows = new ArrayList<>();
+		List<MappingOT> allTissue = mappingOTRepository.findAll();
+		rows.add(header);
+		for (MappingOT m: allTissue) {
+			if (m.getNamespaceName() == null) {
+				String[] row = new String[7];
+				row[0] = m.getId()+"";
+				row[1] = m.getCount()+ "";
+				row[2] = m.getName();
+				// find records with this value
+				List<BS> bsList = bsRepository.findByOtIgnoreCase(m.getName());
+				Set<String> recordList = new HashSet<>();
+				for (BS bs: bsList) {
+					String cc = bs.getRecord().getCC();
+					if (cc != null && cc.contains(":")) {
+						cc = cc.substring(cc.indexOf(":") + 1);
+					}
+					recordList.add(cc);
+				}
+				recordMap.put(m.getId(), new ArrayList<>(recordList));
+				rows.add(row);
+			}
+		}
+		
+		recordRows = new ArrayList<>();
+		recordRows.add(rHeader);
+		for (Long id: recordMap.keySet()) {
+			List<String> records = recordMap.get(id);
+			for (String cc: records) {
+				String[] row = new String[2];
+				row[0] = id+"";
+				row[1] = cc;
+				recordRows.add(row);
+			}
+		}
+		try {
+			writeToExcel (rows, "mapping_BS_Tissue.xlsx", recordRows);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		// ST
+		recordMap = new HashMap<>();
+		rows = new ArrayList<>();
+		List<MappingST> allSt = mappingSTRepository.findAll();
+		rows.add(header);
+		for (MappingST m: allSt) {
+			if (m.getNamespaceName() == null) {
+				String[] row = new String[7];
+				row[0] = m.getId()+"";
+				row[1] = m.getCount()+ "";
+				row[2] = m.getName();
+				// find records with this value
+				List<ST> bsList = stRepository.findByValueIgnoreCase(m.getName());
+				Set<String> recordList = new HashSet<>();
+				for (ST bs: bsList) {
+					String cc = bs.getRecord().getCC();
+					if (cc != null && cc.contains(":")) {
+						cc = cc.substring(cc.indexOf(":") + 1);
+					}
+					recordList.add(cc);
+				}
+				recordMap.put(m.getId(), new ArrayList<>(recordList));
+				rows.add(row);
+			}
+		}
+		
+		recordRows = new ArrayList<>();
+		recordRows.add(rHeader);
+		for (Long id: recordMap.keySet()) {
+			List<String> records = recordMap.get(id);
+			for (String cc: records) {
+				String[] row = new String[2];
+				row[0] = id+"";
+				row[1] = cc;
+				recordRows.add(row);
+			}
+		}
+		try {
+			writeToExcel (rows, "mapping_ST.xlsx", recordRows);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 	}
 	
@@ -1640,7 +1876,7 @@ public class CarbbankService {
 		return matches;
 	}
 	
-	public void writeToExcel (List<String[]> rows, String filename) throws IOException {
+	public void writeToExcel (List<String[]> rows, String filename, List<String[]> records) throws IOException {
 		FileOutputStream excelWriter = new FileOutputStream(filename);
 		Workbook workbook = new XSSFWorkbook();
 		
@@ -1653,6 +1889,15 @@ public class CarbbankService {
         Sheet sheet = workbook.createSheet("Mappings");
         CellStyle wrapTextStyle = workbook.createCellStyle();
         wrapTextStyle.setWrapText(true);
+        
+        CreationHelper createHelper = workbook.getCreationHelper();
+        
+
+        CellStyle hlinkStyle = workbook.createCellStyle();
+        XSSFFont hlinkFont= (XSSFFont) workbook.createFont();
+        hlinkFont.setUnderline(Font.U_SINGLE);
+        hlinkFont.setColor(IndexedColors.BLUE.getIndex());
+        hlinkStyle.setFont(hlinkFont);
         
         // first row is the header row
         if (rows.size() > 0) {
@@ -1673,9 +1918,39 @@ public class CarbbankService {
         			Cell cell = entry.createCell(j++);
         			cell.setCellStyle(wrapTextStyle);
     				cell.setCellValue(col);
-        		}
+           		}
         	}
         }
+        
+        if (records != null && !records.isEmpty()) {
+        	Sheet recordsSheet = workbook.createSheet("records");
+        	String[] headerRow = records.get(0);
+        	Row header = recordsSheet.createRow(0);
+        	int i=0;
+        	for (String col: headerRow) {
+        		Cell cell = header.createCell(i++);
+        		cell.setCellValue(col);
+        		cell.setCellStyle(boldStyle);
+        	}
+        	
+        	for (i=1; i< records.size(); i++) {
+        		String[] row = records.get(i);
+        		Row entry = recordsSheet.createRow(i);
+        		int j=0;
+        		for (String col: row) {
+        			Cell cell = entry.createCell(j++);
+    				cell.setCellValue(col);
+    				if (j == 2) {
+	    				Hyperlink link = createHelper.createHyperlink(HyperlinkType.URL);
+	    				link.setAddress("https://www.genome.jp/dbget-bin/www_bget?carbbank+" + col);
+	    				cell.setHyperlink(link);
+	    				cell.setCellStyle(hlinkStyle);
+    				}
+        		}
+        	}
+        	
+        }
+        
         workbook.write(excelWriter);
         excelWriter.close();
         workbook.close();

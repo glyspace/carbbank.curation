@@ -11,4 +11,5 @@ public interface STRepository extends JpaRepository<ST, Long> {
 	List<String> findDistinctValue();
 	
 	long countByValueIgnoreCase (String name);
+	List<ST> findByValueIgnoreCase (String name);
 }

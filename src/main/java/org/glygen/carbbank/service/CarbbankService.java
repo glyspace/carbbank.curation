@@ -736,16 +736,34 @@ public class CarbbankService {
 		
 		c = mappingDiseaseRepository.count();
 		if (c == 0) {
+			Set<String> alreadyAdded = new HashSet<>();
+			Map <String, Integer> counts = new HashMap<>();
 			List<String> distinctValues = bsRepository.findDistinctDisease();
 			for (String name: distinctValues) {
 				if (name == null || name.isEmpty()) 
 					continue;
-				long count = bsRepository.countByDiseaseIgnoreCase(name);
-				MappingDisease mapping = new MappingDisease();
-				mapping.setCount(Long.valueOf(count).intValue());
-				mapping.setName(name);
-				
-				mappingDiseaseRepository.save(mapping);
+				String[] multiple = name.split(",");
+				for (String n: multiple) {
+					if (!alreadyAdded.contains(n.trim())) {
+						alreadyAdded.add(n.trim());
+						MappingDisease mapping = new MappingDisease();
+						mapping.setName(n.trim());
+						mappingDiseaseRepository.save(mapping);
+					}
+					if (counts.get(n.trim()) == null) {
+						counts.put(n.trim(), 1);
+					} else {
+						counts.put(n.trim(), counts.get(n.trim()) + 1);
+					}
+				}	
+			}
+			List<MappingDisease> mappings = mappingDiseaseRepository.findAll();
+			for (MappingDisease mapping: mappings) {
+				Integer count = counts.get(mapping.getName());
+				if (count != null) {
+					mapping.setCount(count);
+					mappingDiseaseRepository.save(mapping);
+				}
 			}
 		}
 		
@@ -856,16 +874,34 @@ public class CarbbankService {
 		
 		c = mappingOTRepository.count();
 		if (c == 0) {
+			Set<String> alreadyAdded = new HashSet<>();
+			Map <String, Integer> counts = new HashMap<>();
 			List<String> distinctValues = bsRepository.findDistinctOT();
 			for (String name: distinctValues) {
 				if (name == null || name.isEmpty()) 
 					continue;
-				long count = bsRepository.countByOtIgnoreCase(name);
-				MappingOT mapping = new MappingOT();
-				mapping.setCount(Long.valueOf(count).intValue());
-				mapping.setName(name);
-				
-				mappingOTRepository.save(mapping);
+				String[] multiple = name.split(",");
+				for (String n: multiple) {
+					if (!alreadyAdded.contains(n.trim())) {
+						alreadyAdded.add(n.trim());
+						MappingOT mapping = new MappingOT();
+						mapping.setName(n.trim());
+						mappingOTRepository.save(mapping);
+					}
+					if (counts.get(n.trim()) == null) {
+						counts.put(n.trim(), 1);
+					} else {
+						counts.put(n.trim(), counts.get(n.trim()) + 1);
+					}
+				}	
+			}
+			List<MappingOT> mappings = mappingOTRepository.findAll();
+			for (MappingOT mapping: mappings) {
+				Integer count = counts.get(mapping.getName());
+				if (count != null) {
+					mapping.setCount(count);
+					mappingOTRepository.save(mapping);
+				}
 			}
 		}
 		
@@ -1595,14 +1631,15 @@ public class CarbbankService {
 		List<String[]> rows = new ArrayList<>();
 		List<MappingCN> allRows = mappingCNRepository.findAll();
 		Map<Long, List<String>> recordMap = new HashMap<>();
-		String[] header = {"ID", "count", "name", "namespacename", "namespaceid", "mappingname", "rank"};
+		String[] header = {"ID", "count", "name", "namespacename", "namespaceid", "mappingname", "rank", "matchCount"};
 		rows.add(header);
 		for (MappingCN m: allRows) {
 			if (m.getNamespaceName() == null) {
-				String[] row = new String[7];
+				String[] row = new String[8];
 				row[0] = m.getId()+"";
 				row[1] = m.getCount()+ "";
 				row[2] = m.getName();
+				row[7] = m.getMatchCount() + "";
 				// find records with this value
 				List<BS> bsList = bsRepository.findByCnIgnoreCase(m.getName());
 				Set<String> recordList = new HashSet<>();
@@ -1643,10 +1680,11 @@ public class CarbbankService {
 		rows.add(header);
 		for (MappingGS m: allGS) {
 			if (m.getNamespaceName() == null) {
-				String[] row = new String[7];
+				String[] row = new String[8];
 				row[0] = m.getId()+"";
 				row[1] = m.getCount()+ "";
 				row[2] = m.getName();
+				row[7] = m.getMatchCount() + "";
 				// find records with this value
 				List<BS> bsList = bsRepository.findByGsIgnoreCase(m.getName());
 				Set<String> recordList = new HashSet<>();
@@ -1687,10 +1725,11 @@ public class CarbbankService {
 		rows.add(header);
 		for (MappingDisease m: allDisease) {
 			if (m.getNamespaceName() == null) {
-				String[] row = new String[7];
+				String[] row = new String[8];
 				row[0] = m.getId()+"";
 				row[1] = m.getCount()+ "";
 				row[2] = m.getName();
+				row[7] = m.getMatchCount() + "";
 				// find records with this value
 				List<BS> bsList = bsRepository.findByDiseaseIgnoreCase(m.getName());
 				Set<String> recordList = new HashSet<>();
@@ -1731,10 +1770,11 @@ public class CarbbankService {
 		rows.add(header);
 		for (MappingCellLine m: allCell) {
 			if (m.getNamespaceName() == null) {
-				String[] row = new String[7];
+				String[] row = new String[8];
 				row[0] = m.getId()+"";
 				row[1] = m.getCount()+ "";
 				row[2] = m.getName();
+				row[7] = m.getMatchCount() + "";
 				// find records with this value
 				List<BS> bsList = bsRepository.findByCelllineIgnoreCase(m.getName());
 				Set<String> recordList = new HashSet<>();
@@ -1775,10 +1815,11 @@ public class CarbbankService {
 		rows.add(header);
 		for (MappingOT m: allTissue) {
 			if (m.getNamespaceName() == null) {
-				String[] row = new String[7];
+				String[] row = new String[8];
 				row[0] = m.getId()+"";
 				row[1] = m.getCount()+ "";
 				row[2] = m.getName();
+				row[7] = m.getMatchCount() + "";
 				// find records with this value
 				List<BS> bsList = bsRepository.findByOtIgnoreCase(m.getName());
 				Set<String> recordList = new HashSet<>();
@@ -1819,10 +1860,11 @@ public class CarbbankService {
 		rows.add(header);
 		for (MappingST m: allSt) {
 			if (m.getNamespaceName() == null) {
-				String[] row = new String[7];
+				String[] row = new String[8];
 				row[0] = m.getId()+"";
 				row[1] = m.getCount()+ "";
 				row[2] = m.getName();
+				row[7] = m.getMatchCount() + "";
 				// find records with this value
 				List<ST> bsList = stRepository.findByValueIgnoreCase(m.getName());
 				Set<String> recordList = new HashSet<>();

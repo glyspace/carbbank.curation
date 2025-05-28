@@ -120,7 +120,9 @@ public class CarbbankUtil {
     			String subKey = key + (subKeyIndex == -1 ? "1": subKeyIndex) + "_" + sub2.toLowerCase() ;
     			String subValue = subEntry.substring(endIndex + 1).trim();
     			if (record.get(subKey) != null) {
-    				record.put(subKey, value);
+    				String existing = record.get(subKey);
+    				existing += ", " + subValue;
+    				record.put(subKey, existing);
     			} else {
     				record.put(subKey, subValue);
     			}

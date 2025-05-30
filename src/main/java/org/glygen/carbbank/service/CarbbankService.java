@@ -262,8 +262,8 @@ public class CarbbankService {
     		
     		for (Map.Entry<String, String> entry : record.entrySet()) {
     			String value = entry.getValue(); 
-    			//value = value.replaceAll("'", "''");
-    			value = value.replace("\n", " ");
+    			value = value.replace("-\n", "-");
+				value = value.replace("\n", " ");
     			value = value.trim();
     			if (value.length() == 0) {
     				continue;    // skip the empty values
@@ -938,14 +938,9 @@ public class CarbbankService {
 				if (record.getTI() != null) {
 					// create publications
 					Publication pub = new Publication();
-					String title = record.getTI();
-					title = title.replace("-\n", "-");
-					title = title.replace("\n", " ");
-					pub.setTitle (title.trim());
+					pub.setTitle (record.getTI());
 					String author = record.getAU();
 					if (author != null) {
-						author = author.replace("-\n", "-");
-						author = author.replace("\n", " ");
 						pub.setAuthor(author.trim());
 					}
 					pub.setJournal(record.getCT());
@@ -998,27 +993,16 @@ public class CarbbankService {
 							for (Publication m: matches) {
 								if (m.equals(pub)) {
 									pub.setPmid(m.getPmid());
+									pub.setDoiId(m.getDoiId());
 									break;
-								} else if (m.getTitle() != null && m.getTitle().equalsIgnoreCase(pub.getTitle())) {
-									pub.setMatchDetails("Title matched, ");
-									if (m.getAuthor() != null && m.getAuthor().equalsIgnoreCase(pub.getAuthor())) {
-										pub.setMatchDetails(pub.getMatchDetails() + "Authors matched, ");
-									} else {
-										pub.setMatchDetails(pub.getMatchDetails() + " Authors did not match: " + m.getAuthor() + ", ");
-									}
-									if (m.getJournal() != null && m.getJournal().equalsIgnoreCase(pub.getJournal())) {
-										pub.setMatchDetails(pub.getMatchDetails() + "Journal matched, ");
-									} else {
-										pub.setMatchDetails(pub.getMatchDetails() + " Journal did not match: " + m.getJournal() + ", ");
-									}
-									pub.setMatchDetails(pub.getMatchDetails().trim());
-								} 
+								}
 							}
+							
 							if (pub.getPmid() == null) {
 								if (matches.size() == 1) {
 									Publication m = matches.get(0);
 									if (m.getTitle() != null && m.getTitle().equalsIgnoreCase(pub.getTitle())) {
-										pub.setMatchDetails("Title matched, ");
+										pub.setMatchDetails("Single Match: " + m.getPmid() + "; Title matched, ");
 										if (m.getAuthor() != null && m.getAuthor().equalsIgnoreCase(pub.getAuthor())) {
 											pub.setMatchDetails(pub.getMatchDetails() + "Authors matched, ");
 										} else {
@@ -1896,6 +1880,32 @@ public class CarbbankService {
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+		}
+		
+		
+		// publications
+		rows = new ArrayList<>();
+		List<Publication> allPublications = publicationRepository.findAll();
+		recordMap = new HashMap<>();
+		String[] header2 = {"ID", "Title", "Authors", "Journal", "CarbbankPMID", "PMID", "DOI", "Match Details"};
+		rows.add(header2);
+		for (Publication m: allPublications) {
+			if (m.getPmid() == null) {
+				String[] row = new String[8];
+				row[0] = m.getId() +"";
+				row[1] = m.getTitle();
+				row[2] = m.getAuthor();
+				row[3] = m.getJournal();
+				row[4] = m.getCarbbankPmid();
+				row[7] = m.getMatchDetails();
+				rows.add(row);
+			}
+		}
+		
+		try {
+			writeToExcel (rows, " carbbank_Publication.xlsx", null);
+		} catch (IOException e1) {
+			logger.error("Error generating Excel file for Publications", e1);
 		}
 	}
 	

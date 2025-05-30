@@ -39,7 +39,8 @@ public class CarbbankApplication {
 	    			service.saveRecords(records);
 	    			service.createMappingTables();
 	    			service.addBSInformation();
-	    	    	service.addPMIDs();
+	    			service.addPMIDs();
+	    			service.generateExcelFiles();
 				} catch (IOException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
@@ -47,11 +48,11 @@ public class CarbbankApplication {
 	    	}
 	    } else {
 	    	// do not parse the file, only work on the mappings
-	    	service.createMappingTables();
-	    	//service.addBSInformation();
+	    //	service.createMappingTables();
+	    //	service.addBSInformation();
 	    	//service.findConflictsInSpecies();
-	    	//service.generateExcelFiles();
 	    	service.addPMIDs();
+	    	service.generateExcelFiles();
 	    }
 	}
 

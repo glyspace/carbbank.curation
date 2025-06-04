@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.Map.Entry;
+import java.util.Optional;
 
 import org.apache.commons.collections4.trie.PatriciaTrie;
 import org.apache.poi.common.usermodel.HyperlinkType;
@@ -83,6 +84,7 @@ import org.glygen.carbbank.model.STParts;
 import org.glygen.carbbank.model.Species;
 import org.glygen.carbbank.model.TN;
 import org.glygen.carbbank.model.VR;
+import org.glygen.carbbank.model.mapping.Mapping;
 import org.glygen.carbbank.model.mapping.MappingAG;
 import org.glygen.carbbank.model.mapping.MappingAM;
 import org.glygen.carbbank.model.mapping.MappingAN;
@@ -247,6 +249,68 @@ public class CarbbankService {
 		this.mappingORepository = mappingORepository;
 		this.mappingOTRepository = mappingOTRepository;
 		this.mappingP_DRepository = mappingP_DRepository;
+	}
+	
+	@Transactional
+	public void updateMappings (List<Mapping> mappings, String tablename) {
+		for (Mapping mapping: mappings) {
+			if (tablename.equalsIgnoreCase("mapping_bs_cn")) {
+				Optional<MappingCN> record = mappingCNRepository.findById(mapping.getId());
+				if (record.isPresent()) {
+					MappingCN existing = record.get();
+					existing.setInProgress(mapping.getInProgress());
+					existing.setMappingName(mapping.getMappingName());
+					existing.setNamespaceId(mapping.getNamespaceId());
+					existing.setNamespaceName(mapping.getNamespaceName());
+					existing.setRank(((MappingCN) mapping).getRank());
+					mappingCNRepository.save(existing);
+				}
+			} else if (tablename.equalsIgnoreCase("mapping_bs_gs")) {
+				Optional<MappingGS> record = mappingGSRepository.findById(mapping.getId());
+				if (record.isPresent()) {
+					MappingGS existing = record.get();
+					existing.setInProgress(mapping.getInProgress());
+					existing.setMappingName(mapping.getMappingName());
+					existing.setNamespaceId(mapping.getNamespaceId());
+					existing.setNamespaceName(mapping.getNamespaceName());
+					existing.setRank(((MappingGS) mapping).getRank());
+					mappingGSRepository.save(existing);
+				}
+			} else if (tablename.equalsIgnoreCase("mapping_bs_disease")) {
+				Optional<MappingDisease> record = mappingDiseaseRepository.findById(mapping.getId());
+				if (record.isPresent()) {
+					MappingDisease existing = record.get();
+					existing.setInProgress(mapping.getInProgress());
+					existing.setMappingName(mapping.getMappingName());
+					existing.setNamespaceId(mapping.getNamespaceId());
+					existing.setNamespaceName(mapping.getNamespaceName());
+					mappingDiseaseRepository.save(existing);
+				}
+			} else if (tablename.equalsIgnoreCase("mapping_bs_ot")) {
+				Optional<MappingOT> record = mappingOTRepository.findById(mapping.getId());
+				if (record.isPresent()) {
+					MappingOT existing = record.get();
+					existing.setInProgress(mapping.getInProgress());
+					existing.setMappingName(mapping.getMappingName());
+					existing.setNamespaceId(mapping.getNamespaceId());
+					existing.setNamespaceName(mapping.getNamespaceName());
+					mappingOTRepository.save(existing);
+				}
+			} else if (tablename.equalsIgnoreCase("mapping_bs_cellline")) {
+				Optional<MappingCellLine> record = mappingCellineRepository.findById(mapping.getId());
+				if (record.isPresent()) {
+					MappingCellLine existing = record.get();
+					existing.setInProgress(mapping.getInProgress());
+					existing.setMappingName(mapping.getMappingName());
+					existing.setNamespaceId(mapping.getNamespaceId());
+					existing.setNamespaceName(mapping.getNamespaceName());
+					mappingCellineRepository.save(existing);
+				}
+			} else {
+				logger.error("Comparison of " + tablename + " has not been implemented yet!");
+			}
+		}
+		
 	}
 	
 	@Transactional
@@ -704,16 +768,32 @@ public class CarbbankService {
 		
 		c = mappingCellineRepository.count();
 		if (c == 0) {
+			Set<String> alreadyAdded = new HashSet<>();
+			Map <String, Integer> counts = new HashMap<>();
 			List<String> distinctValues = bsRepository.findDistinctCellline();
 			for (String name: distinctValues) {
 				if (name == null || name.isEmpty()) 
 					continue;
-				long count = bsRepository.countByCelllineIgnoreCase(name);
 				String[] split = name.split(",");
 				for (String n: split) {
-					MappingCellLine mapping = new MappingCellLine();
-					mapping.setCount(Long.valueOf(count).intValue());
-					mapping.setName(n.trim());
+					if (!alreadyAdded.contains(n.trim())) {
+						alreadyAdded.add(n.trim());
+						MappingCellLine mapping = new MappingCellLine();
+						mapping.setName(n.trim());
+						mappingCellineRepository.save(mapping);
+					}
+					if (counts.get(n.trim()) == null) {
+						counts.put(n.trim(), 1);
+					} else {
+						counts.put(n.trim(), counts.get(n.trim()) + 1);
+					}
+				}
+			}
+			List<MappingCellLine> mappings = mappingCellineRepository.findAll();
+			for (MappingCellLine mapping: mappings) {
+				Integer count = counts.get(mapping.getName());
+				if (count != null) {
+					mapping.setCount(count);
 					mappingCellineRepository.save(mapping);
 				}
 			}
@@ -721,16 +801,34 @@ public class CarbbankService {
 		
 		c = mappingCNRepository.count();
 		if (c == 0) {
+			Set<String> alreadyAdded = new HashSet<>();
+			Map <String, Integer> counts = new HashMap<>();
 			List<String> distinctValues = bsRepository.findDistinctCN();
 			for (String name: distinctValues) {
 				if (name == null || name.isEmpty()) 
 					continue;
-				long count = bsRepository.countByCnIgnoreCase(name);
-				MappingCN mapping = new MappingCN();
-				mapping.setCount(Long.valueOf(count).intValue());
-				mapping.setName(name);
-				
-				mappingCNRepository.save(mapping);
+				String[] multiple = name.split(",");
+				for (String n: multiple) {
+					if (!alreadyAdded.contains(n.trim())) {
+						alreadyAdded.add(n.trim());
+						MappingCN mapping = new MappingCN();
+						mapping.setName(n.trim());
+						mappingCNRepository.save(mapping);
+					}
+					if (counts.get(n.trim()) == null) {
+						counts.put(n.trim(), 1);
+					} else {
+						counts.put(n.trim(), counts.get(n.trim()) + 1);
+					}
+				}
+			}
+			List<MappingCN> mappings = mappingCNRepository.findAll();
+			for (MappingCN mapping: mappings) {
+				Integer count = counts.get(mapping.getName());
+				if (count != null) {
+					mapping.setCount(count);
+					mappingCNRepository.save(mapping);
+				}
 			}
 		}
 		
@@ -799,16 +897,34 @@ public class CarbbankService {
 		
 		c = mappingGSRepository.count();
 		if (c == 0) {
+			Set<String> alreadyAdded = new HashSet<>();
+			Map <String, Integer> counts = new HashMap<>();
 			List<String> distinctValues = bsRepository.findDistinctGS();
 			for (String name: distinctValues) {
 				if (name == null || name.isEmpty()) 
 					continue;
-				long count = bsRepository.countByGsIgnoreCase(name);
-				MappingGS mapping = new MappingGS();
-				mapping.setCount(Long.valueOf(count).intValue());
-				mapping.setName(name);
-				
-				mappingGSRepository.save(mapping);
+				String[] multiple = name.split(",");
+				for (String n: multiple) {
+					if (!alreadyAdded.contains(n.trim())) {
+						alreadyAdded.add(n.trim());
+						MappingGS mapping = new MappingGS();
+						mapping.setName(n.trim());
+						
+						mappingGSRepository.save(mapping);
+					}if (counts.get(n.trim()) == null) {
+						counts.put(n.trim(), 1);
+					} else {
+						counts.put(n.trim(), counts.get(n.trim()) + 1);
+					}
+				}
+			}
+			List<MappingGS> mappings = mappingGSRepository.findAll();
+			for (MappingGS mapping: mappings) {
+				Integer count = counts.get(mapping.getName());
+				if (count != null) {
+					mapping.setCount(count);
+					mappingGSRepository.save(mapping);
+				}
 			}
 		}
 		
@@ -1003,7 +1119,7 @@ public class CarbbankService {
 									Publication m = matches.get(0);
 									if (m.getTitle() != null && m.getTitle().equalsIgnoreCase(pub.getTitle())) {
 										pub.setMatchDetails("Single Match: " + m.getPmid() + "; Title matched, ");
-										if (m.getAuthor() != null && m.getAuthor().equalsIgnoreCase(pub.getAuthor())) {
+										if (m.authorMatch(pub.getAuthor())) {
 											pub.setMatchDetails(pub.getMatchDetails() + "Authors matched, ");
 										} else {
 											pub.setMatchDetails(pub.getMatchDetails() + " Authors did not match: " + m.getAuthor() + ",");
@@ -1015,7 +1131,9 @@ public class CarbbankService {
 										}
 										pub.setMatchDetails(pub.getMatchDetails().trim());
 									}
-								} 
+								} else {
+									pub.setMatchDetails("Multiple matches");
+								}
 							}
 						}
 						pub.setChecked(true);

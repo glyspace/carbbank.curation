@@ -4,7 +4,9 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
+import org.glygen.carbbank.model.mapping.Mapping;
 import org.glygen.carbbank.parser.CarbbankUtil;
+import org.glygen.carbbank.parser.ComparisonUtil;
 import org.glygen.carbbank.service.CarbbankService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.ApplicationArguments;
@@ -31,7 +33,13 @@ public class CarbbankApplication {
 	public void doSomethingAfterStartup(ApplicationReadyEvent event) {
 		ApplicationArguments args = event.getApplicationContext().getBean(ApplicationArguments.class);
 		NamespaceHandler.loadNamespaces();
-	    if (args.containsOption("file")) {
+		if (args.containsOption("compare")) {
+			List<String> tablenames = args.getOptionValues("compare");
+			List<String> filenames = args.getOptionValues("file");
+			List<Mapping> mappings = new ComparisonUtil().compareFiles(filenames, tablenames.get(0));
+			//service.updateMappings(mappings, tablenames.get(0));
+		}
+		else if (args.containsOption("file")) {
 	    	List<String> carbbankFile = args.getOptionValues("file");
 	    	if (!carbbankFile.isEmpty()) {
 	    		try {
@@ -48,8 +56,8 @@ public class CarbbankApplication {
 	    	}
 	    } else {
 	    	// do not parse the file, only work on the mappings
-	    //	service.createMappingTables();
-	    //	service.addBSInformation();
+	    	//service.createMappingTables();
+	    	//service.addBSInformation();
 	    	//service.findConflictsInSpecies();
 	    	service.addPMIDs();
 	    	service.generateExcelFiles();

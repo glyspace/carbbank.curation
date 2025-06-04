@@ -1,5 +1,6 @@
 package org.glygen.carbbank.model.mapping;
 
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -88,7 +89,7 @@ public class Publication {
 		if (obj instanceof Publication) {
 			if (title != null && title.equalsIgnoreCase(((Publication) obj).getTitle())) {
 				if (author != null) {
-					if (author.equalsIgnoreCase(((Publication) obj).getAuthor())) {
+					if (authorMatch(((Publication) obj).getAuthor())) {
 						if (journal != null) {
 							if (journal.equalsIgnoreCase(((Publication) obj).getJournal())) {
 								return true;
@@ -111,6 +112,33 @@ public class Publication {
 			}
 		}
 		return super.equals(obj);
+	}
+	
+	public boolean authorMatch (String author2) {
+		if (this.author != null && this.author.equalsIgnoreCase(author2))
+			return true;
+		if (this.author != null && author2 != null) {
+			// use only last names to match
+			String[] authorList = this.author.split(";");
+			String lastNames1 = "";
+			for (String a: authorList) {
+				if (a.indexOf(" ") != -1) {
+					a = a.trim().substring(0, a.lastIndexOf(" "));
+				}
+				lastNames1 += a.trim() + ";";
+			}
+			authorList = author2.split(";");
+			String lastNames2 = "";
+			for (String a: authorList) {
+				if (a.indexOf(" ") != -1) {
+					a = a.trim().substring(0, a.lastIndexOf(" "));
+				}
+				lastNames2 += a.trim() + ";";
+			}
+			return lastNames1.equalsIgnoreCase(lastNames2);
+		}
+		if (this.author == null && author2 == null) return true;
+		return false;
 	}
 	
 	@Override

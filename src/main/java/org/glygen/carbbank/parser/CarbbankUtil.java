@@ -11,6 +11,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class CarbbankUtil {
 	
@@ -105,7 +107,9 @@ public class CarbbankUtil {
     
     private static void parseMultiField(Map<String, String> record, String key, String value, Integer subKeyIndex) {
     	value = value.replace("\n", " ");
-    	String[] subEntries = value.split(", \\(");
+    	value = fixMissingCommasBeforeSpecificTags(value);
+    	String[] subEntries = value.split(",\\s*(?=\\()");
+    	//String[] subEntries = value.split(", \\(");
     	for (String subEntry : subEntries) {
     		int startIndex = subEntry.indexOf('(');
     		int endIndex = subEntry.indexOf(')');
@@ -131,7 +135,25 @@ public class CarbbankUtil {
     	}
     }
     
-    
+    public static String fixMissingCommasBeforeSpecificTags(String input) {
+        // Pattern: match (disease) or (cell line) not preceded by a comma or opening parenthesis
+//        Pattern pattern = Pattern.compile("(?<![,\\(])(?=\\s*\\((disease|cell line)\\))");
+    	Pattern pattern = Pattern.compile("(?<!^)(?<![,\\s])\\s*(\\((disease|cell line|OT|GS)\\))");
+
+      //  Pattern pattern = Pattern.compile("(?<![,\\s])\\s*(\\((disease|cell line)\\))");
+
+        // Replace with ", (disease)" or ", (cell line)"
+        Matcher matcher = pattern.matcher(input);
+        StringBuffer result = new StringBuffer();
+
+        while (matcher.find()) {
+        	matcher.appendReplacement(result, ", " + matcher.group(1));
+        }
+        matcher.appendTail(result);
+        
+        return result.toString();
+    }
+       
     public static void main(String[] args) {
         String filePath = "/Users/sena/Downloads/carbbank.txt"; 
         Set<String> patterns = new TreeSet<>();

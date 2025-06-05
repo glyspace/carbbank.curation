@@ -1720,7 +1720,7 @@ public class CarbbankService {
 		}
 		logger.info("Conflicting CN and GS:" + conflictList.size());
 		try {
-			writeToExcel(conflictList, "CN_GS_Conflicts.xlsx", null);
+			writeToExcel(conflictList, "mappings", "CN_GS_Conflicts.xlsx", null, null);
 		} catch (IOException e) {
 			logger.error("Failed to write excel file for CN/GS conflicts", e);
 		}
@@ -1769,7 +1769,7 @@ public class CarbbankService {
 			}
 		}
 		try {
-			writeToExcel (rows, "mapping_BS_CN.xlsx", recordRows);
+			writeToExcel (rows, "Mappings", "mapping_BS_CN.xlsx", recordRows, "Records");
 		} catch (IOException e1) {
 			// TODO Auto-generated catch block
 			e1.printStackTrace();
@@ -1814,7 +1814,7 @@ public class CarbbankService {
 			}
 		}
 		try {
-			writeToExcel (rows, "mapping_BS_GS.xlsx", recordRows);
+			writeToExcel (rows, "Mappings", "mapping_BS_GS.xlsx", recordRows, "Records");
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -1859,7 +1859,7 @@ public class CarbbankService {
 			}
 		}
 		try {
-			writeToExcel (rows, "mapping_BS_Disease.xlsx", recordRows);
+			writeToExcel (rows, "Mappings", "mapping_BS_Disease.xlsx", recordRows, "Records");
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -1904,7 +1904,7 @@ public class CarbbankService {
 			}
 		}
 		try {
-			writeToExcel (rows, "mapping_BS_Cellline.xlsx", recordRows);
+			writeToExcel (rows, "Mappings", "mapping_BS_Cellline.xlsx", recordRows, "Records");
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -1949,7 +1949,7 @@ public class CarbbankService {
 			}
 		}
 		try {
-			writeToExcel (rows, "mapping_BS_Tissue.xlsx", recordRows);
+			writeToExcel (rows, "Mappings", "mapping_BS_Tissue.xlsx", recordRows, "Records");
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -1994,7 +1994,7 @@ public class CarbbankService {
 			}
 		}
 		try {
-			writeToExcel (rows, "mapping_ST.xlsx", recordRows);
+			writeToExcel (rows, "Mappings", "mapping_ST.xlsx", recordRows, "Records");
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -2021,7 +2021,7 @@ public class CarbbankService {
 		}
 		
 		try {
-			writeToExcel (rows, " carbbank_Publication.xlsx", null);
+			writeToExcel (rows, "Publications", "carbbank_Publication.xlsx", null, null);
 		} catch (IOException e1) {
 			logger.error("Error generating Excel file for Publications", e1);
 		}
@@ -2046,7 +2046,7 @@ public class CarbbankService {
 		return matches;
 	}
 	
-	public void writeToExcel (List<String[]> rows, String filename, List<String[]> records) throws IOException {
+	public static void writeToExcel (List<String[]> rows, String sheetName, String filename, List<String[]> records, String sheetName2) throws IOException {
 		FileOutputStream excelWriter = new FileOutputStream(filename);
 		Workbook workbook = new XSSFWorkbook();
 		
@@ -2056,13 +2056,12 @@ public class CarbbankService {
         CellStyle boldStyle = workbook.createCellStyle();
         boldStyle.setFont(font);
         
-        Sheet sheet = workbook.createSheet("Mappings");
+        Sheet sheet = workbook.createSheet(sheetName);
         CellStyle wrapTextStyle = workbook.createCellStyle();
         wrapTextStyle.setWrapText(true);
         
         CreationHelper createHelper = workbook.getCreationHelper();
         
-
         CellStyle hlinkStyle = workbook.createCellStyle();
         XSSFFont hlinkFont= (XSSFFont) workbook.createFont();
         hlinkFont.setUnderline(Font.U_SINGLE);
@@ -2093,7 +2092,7 @@ public class CarbbankService {
         }
         
         if (records != null && !records.isEmpty()) {
-        	Sheet recordsSheet = workbook.createSheet("records");
+        	Sheet recordsSheet = workbook.createSheet(sheetName2);
         	String[] headerRow = records.get(0);
         	Row header = recordsSheet.createRow(0);
         	int i=0;
@@ -2110,7 +2109,7 @@ public class CarbbankService {
         		for (String col: row) {
         			Cell cell = entry.createCell(j++);
     				cell.setCellValue(col);
-    				if (j == 2) {
+    				if (j == 2 && sheetName2.equalsIgnoreCase("records")) {
 	    				Hyperlink link = createHelper.createHyperlink(HyperlinkType.URL);
 	    				link.setAddress("https://www.genome.jp/dbget-bin/www_bget?carbbank+" + col);
 	    				cell.setHyperlink(link);

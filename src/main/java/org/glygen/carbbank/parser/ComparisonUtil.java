@@ -232,7 +232,7 @@ public class ComparisonUtil {
             	Cell idCell = row.getCell(0);
             	if (idCell == null) {
             		logger.warn("ID is empty for row " + row.getRowNum() + " of file " + filename);
-            		continue;
+            		break;
             	}
             	if (idCell.getCellType() == CellType.NUMERIC) {
             		idInFile = (int)idCell.getNumericCellValue() + "";

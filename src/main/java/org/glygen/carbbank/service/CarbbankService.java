@@ -9,6 +9,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.Map.Entry;
 import java.util.Optional;
 
@@ -110,11 +111,13 @@ import org.glygen.carbbank.model.mapping.MappingP_D;
 import org.glygen.carbbank.model.mapping.MappingST;
 import org.glygen.carbbank.model.mapping.MappingTN;
 import org.glygen.carbbank.model.mapping.Publication;
+import org.glygen.carbbank.parser.CrossRefAPI;
 import org.glygen.carbbank.parser.PubmedUtil;
 import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import ch.qos.logback.core.boolex.Matcher;
 import jakarta.transaction.Transactional;
 
 @Service
@@ -1059,7 +1062,7 @@ public class CarbbankService {
 					if (author != null) {
 						pub.setAuthor(author.trim());
 					}
-					pub.setJournal(record.getCT());
+					extractJournal(pub, record.getCT());
 					for (DB db: record.getDbList()) {
 						if (db.getValue().toLowerCase().startsWith("pmid")) {
 							String[] split = db.getValue().split(":");
@@ -1093,13 +1096,49 @@ public class CarbbankService {
 		}*/
 	}
 	
+	private void extractJournal(Publication pub, String ct) {
+		Pattern pattern = Pattern.compile(
+			    "^(.*?)\\s*\\((\\d{4})\\)\\s*(?:(\\w+)\\s*:)??\\s*:?\\s*([a-zA-Z]*\\d+[a-zA-Z]*|[ivxlcdm]+(?:-[ivxlcdm]+)?|\\?|[a-zA-Z]*\\d+(?:-[a-zA-Z]*\\d+)?)?$",
+			    Pattern.CASE_INSENSITIVE
+			);
+
+        java.util.regex.Matcher matcher = pattern.matcher(ct);
+
+        if (matcher.find()) {
+            String journalName = matcher.group(1).trim();
+            String year = matcher.group(2);
+            String volume = matcher.group(3);
+            String pageRange = matcher.group(4);
+            
+            if (journalName.contains("(")) {
+            	journalName = journalName.substring(0, journalName.indexOf("(")).trim();
+            }
+
+            pub.setJournalName(journalName);
+            pub.setYear(year);
+            pub.setPageRange(pageRange);
+            pub.setVolume(volume);
+        } else {
+        	if (ct.contains("(")) {
+        		String journalName = ct.substring(0, ct.indexOf("(")).trim();
+        		String year = ct.substring(ct.indexOf("("), ct.indexOf(")"));
+        		pub.setJournalName(journalName);
+                pub.setYear(year);
+        	} else {
+        		logger.warn("Reference format not recognized: " + ct);
+        	}
+        }
+
+	}
+
 	public void addPMIDs () {
 		// add pmids
 		PubmedUtil util = new PubmedUtil(apiKey);
+		CrossRefAPI util2 = new CrossRefAPI();
 		// go through existing ones and assign pmid if not assigned
 		List<Publication> allPublications = publicationRepository.findAll();
 		for (Publication pub: allPublications) {
-			if (pub.getPmid() == null || pub.getPmid().isEmpty()) {
+			if ((pub.getPmid() == null || pub.getPmid().isEmpty()) && (pub.getDoiId() == null || pub.getDoiId().isEmpty())) {
 				// check Pubmed to see if we can get the pmid
 				try {
 					if (pub.getChecked() == null || !pub.getChecked()) {
@@ -1124,17 +1163,55 @@ public class CarbbankService {
 										} else {
 											pub.setMatchDetails(pub.getMatchDetails() + " Authors did not match: " + m.getAuthor() + ",");
 										}
-										if (m.getJournal() != null && m.getJournal().equalsIgnoreCase(pub.getJournal())) {
+										if (m.journalMatch(pub)) {
 											pub.setMatchDetails(pub.getMatchDetails() + "Journal matched, ");
 										} else {
-											pub.setMatchDetails(pub.getMatchDetails() + " Journal did not match: " + m.getJournal() + ", ");
+											pub.setMatchDetails(pub.getMatchDetails() + " Journal did not match: " + 
+													m.getJournalName() + " (" + m.getYear() + ") " + m.getVolume() + ": " + m.getPageRange() + ", ");
 										}
 										pub.setMatchDetails(pub.getMatchDetails().trim());
 									}
 								} else {
-									pub.setMatchDetails("Multiple matches");
+									pub.setMatchDetails("Multiple results from PubMed. None matched");
 								}
 							}
+							
+						} else {
+							// check crossRef to find matches
+							List<Publication> crossRefMatches = util2.getPublicationByTitle(pub.getTitle());
+							pub.setMatchCount(crossRefMatches.size()+"");
+							if (!crossRefMatches.isEmpty()) {
+								for (Publication m: crossRefMatches) {
+									if (m.equals(pub)) {
+										pub.setPmid(m.getPmid());
+										pub.setDoiId(m.getDoiId());
+										break;
+									}
+								}
+							}
+							if (pub.getDoiId() == null) {
+								if (crossRefMatches.size() == 1) {
+									Publication m = crossRefMatches.get(0);
+									if (m.getTitle() != null && m.getTitle().equalsIgnoreCase(pub.getTitle())) {
+										pub.setMatchDetails("Single CrossRef Match: " + m.getDoiId() + "; Title matched, ");
+										if (m.authorMatch(pub.getAuthor())) {
+											pub.setMatchDetails(pub.getMatchDetails() + "Authors matched, ");
+										} else {
+											pub.setMatchDetails(pub.getMatchDetails() + " Authors did not match: " + m.getAuthor() + ",");
+										}
+										if (m.journalMatch(pub)) {
+											pub.setMatchDetails(pub.getMatchDetails() + "Journal matched, ");
+										} else {
+											pub.setMatchDetails(pub.getMatchDetails() + " Journal did not match: " + 
+													m.getJournalName() + " (" + m.getYear() + ") " + m.getVolume() + ": " + m.getPageRange() + ", ");
+										}
+										pub.setMatchDetails(pub.getMatchDetails().trim());
+									}
+								} else {
+									pub.setMatchDetails("Multiple results from CrossRef. None matched");
+								}
+							}
+							
 						}
 						pub.setChecked(true);
 						publicationRepository.save(pub);
@@ -1145,7 +1222,7 @@ public class CarbbankService {
 					        Thread.currentThread().interrupt(); // restore interrupted status
 					    }
 					}
-				} catch (IOException e) {
+				} catch (Exception e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
@@ -1231,6 +1308,12 @@ public class CarbbankService {
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
+				
+				try {
+			        Thread.sleep(100); // wait 100 milliseconds between requests
+			    } catch (InterruptedException e1) {
+			        Thread.currentThread().interrupt(); // restore interrupted status
+			    }
 			}
 		}
 		
@@ -2013,7 +2096,7 @@ public class CarbbankService {
 				row[0] = m.getId() +"";
 				row[1] = m.getTitle();
 				row[2] = m.getAuthor();
-				row[3] = m.getJournal();
+				row[3] = m.getJournalName() + " (" + m.getYear() + ") " + m.getVolume() + ": " + m.getPageRange();
 				row[4] = m.getCarbbankPmid();
 				row[7] = m.getMatchDetails();
 				rows.add(row);

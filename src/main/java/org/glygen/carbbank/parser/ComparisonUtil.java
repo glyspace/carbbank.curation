@@ -3,6 +3,7 @@ package org.glygen.carbbank.parser;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
@@ -31,7 +32,7 @@ public class ComparisonUtil {
 
 	public List<Mapping> compareFiles(List<String> fileList, String tablename) {
 		List<Mapping> agreements = new ArrayList<Mapping>();
-		List<Mapping> disagreements = new ArrayList<Mapping>();
+		List<Disagreement> disagreements = new ArrayList<>();
 		String first = fileList.get(0);
 		File file1 = new File (first);
 		try {
@@ -45,6 +46,7 @@ public class ComparisonUtil {
 	            	count = 1;
 	            	continue;
 	            } else {
+	            	Disagreement dis = new Disagreement();
 	            	String id = null;
 	            	Cell idCell = row.getCell(0);
 	            	if (idCell == null) {
@@ -56,7 +58,15 @@ public class ComparisonUtil {
 	            	} else {
 	            		id = idCell.getStringCellValue();
 	            	}
+	            	dis.id = id;
 	            	String namespaceName = row.getCell(3).getStringCellValue();
+	            	String name = row.getCell(2).getStringCellValue();
+	            	String mappingName = row.getCell(5).getStringCellValue();
+	            	String rank = null;
+    				if (row.getCell(6) != null && row.getCell(6).getCellType() != CellType.NUMERIC) {
+    					rank = row.getCell(6).getStringCellValue();
+    				}
+	            	dis.name = name;
 	            	Cell namespaceIdCell = row.getCell(4);
 	            	String namespaceId = null;
 	            	if (namespaceIdCell.getCellType() == CellType.NUMERIC) {
@@ -68,27 +78,38 @@ public class ComparisonUtil {
 	            		// check if it agrees with other files
 	            		boolean matchedAll = true;
 	            		for (int i=1; i < fileList.size(); i++) {
-	            			boolean matched = findInFile (fileList.get(i), id, namespaceId, namespaceName);
-	            			if (!matched) {
+	            			Mapping matched = findInFile (fileList.get(i), id, namespaceId, namespaceName, tablename);
+	            			if (matched == null) {
 	            				matchedAll = false;
+	            			} else {
+	            				if (!matched.getNamespaceId().equals(namespaceId)) {
+	            					matchedAll = false;
+	            					dis.namespaceIds.add(namespaceId);
+	            					dis.namespaceNames.add(namespaceName);
+	            					dis.mappingNames.add(mappingName);
+	            					dis.ranks.add(rank);
+	            					dis.namespaceIds.add(matched.getNamespaceId());
+	            					dis.namespaceNames.add(matched.getNamespaceName());
+	            					dis.mappingNames.add(matched.getMappingName());
+	            					if (matched instanceof MappingCN) {
+	            						dis.ranks.add(((MappingCN) matched).getRank());
+	            					} else if (matched instanceof MappingGS) {
+	            						dis.ranks.add(((MappingGS) matched).getRank());
+	            					} else if (matched instanceof MappingST) {
+	            						dis.ranks.add(((MappingST) matched).getRank());
+	            					}
+	            				}
 	            			}
 	            		}
 	            		if (matchedAll) {
-	            			String name = row.getCell(2).getStringCellValue();
-            				String mappingName = row.getCell(5).getStringCellValue();
-            				String rank = null;
-            				if (row.getCell(6) != null && row.getCell(6).getCellType() != CellType.NUMERIC) {
-            					rank = row.getCell(6).getStringCellValue();
-            				}
             				Mapping mapping = createMapping (tablename, id, namespaceName, namespaceId, mappingName, rank);
             				mapping.setName(name);
             				agreements.add(mapping);
             			} else {
-            				String name = row.getCell(2).getStringCellValue();
             				// update progress status
             				Mapping mapping = createMapping(tablename, id, null, null, null, null);
             				mapping.setName(name);
-            				disagreements.add(mapping);
+            				disagreements.add(dis);
             			}
 	            	}
 	            }
@@ -96,43 +117,49 @@ public class ComparisonUtil {
 	        
 	        List<String[]> rows = new ArrayList<>();
 			List<String[]> rows2 = new ArrayList<String[]>();
-			String[] header = {"ID", "count", "name", "namespacename", "namespaceid", "mappingname", "rank"};
+			String[] header = {"ID", "name", "namespacename", "namespaceid", "mappingname", "rank"};
 			rows.add(header);
-			rows2.add(header);
 			
 			for (Mapping m: agreements) {
-				String[] row = new String[7];
+				String[] row = new String[6];
 				row[0] = m.getId() + "";
-				row[1] = m.getCount() + "";
-				row[2] = m.getName();
-				row[3] = m.getNamespaceName();
-				row[4] = m.getNamespaceId();
-				row[5] = m.getMappingName();
+				row[1] = m.getName();
+				row[2] = m.getNamespaceName();
+				row[3] = m.getNamespaceId();
+				row[4] = m.getMappingName();
 				if (m instanceof MappingCN) {
-					row[6] = ((MappingCN) m).getRank();
-				}
-				else if (m instanceof MappingGS) {
-					row[6] = ((MappingGS) m).getRank();
+					row[5] = ((MappingCN) m).getRank();
+				} else if (m instanceof MappingGS) {
+					row[5] = ((MappingGS) m).getRank();
 				} else if (m instanceof MappingST) {
-					row[6] = ((MappingST) m).getRank();
+					row[5] = ((MappingST) m).getRank();
 				}
 				rows.add(row);
 			}
-			for (Mapping m: disagreements) {
-				String[] row = new String[7];
-				row[0] = m.getId() + "";
-				row[1] = m.getCount() + "";
-				row[2] = m.getName();
-				row[3] = m.getNamespaceName();
-				row[4] = m.getNamespaceId();
-				row[5] = m.getMappingName();
-				if (m instanceof MappingCN) {
-					row[6] = ((MappingCN) m).getRank();
-				}
-				else if (m instanceof MappingGS) {
-					row[6] = ((MappingGS) m).getRank();
-				} else if (m instanceof MappingST) {
-					row[6] = ((MappingST) m).getRank();
+			
+			int i=0;
+			for (Disagreement m: disagreements) {
+				if (i == 0) {
+					List<String> header2 = new ArrayList<>(Arrays.asList(header));
+					int fileNo = m.namespaceIds.size();
+					for (int j=1; j < fileNo; j++) {
+						header2.add("namespacename" + (j+1));
+						header2.add("namespaceid" + (j+1));
+						header2.add("mappingname" + (j+1));
+						header2.add("rank" + (j+1));
+					}
+					rows2.add(header2.toArray(new String[0]));
+					i++;
+				} 
+				String[] row = new String[2+4*m.namespaceIds.size()];
+				row[0] = m.id + "";
+				row[1] = m.name;
+				for (int j=0; j < m.namespaceIds.size(); j++) {
+					int index = 2+4*j;
+					row[index] = m.namespaceNames.get(j);
+					row[index+1] = m.namespaceIds.get(j);
+					row[index+2] = m.mappingNames.get(j);
+					row[index+3] = m.ranks.get(j);
 				}
 				rows2.add(row);
 			}
@@ -215,7 +242,7 @@ public class ComparisonUtil {
 		return null;
 	}
 
-	private boolean findInFile(String filename, String id, String namespaceId, String namespaceName) throws EncryptedDocumentException, IOException {
+	private Mapping findInFile(String filename, String id, String namespaceId, String namespaceName, String tablename) throws EncryptedDocumentException, IOException {
 		File file = new File (filename);
 		
 		Workbook workbook = WorkbookFactory.create(file);
@@ -248,18 +275,32 @@ public class ComparisonUtil {
 	            	} else {
 	            		namespaceIdInFile = namespaceIdCell.getStringCellValue();
 	            	}
+	            	String mappingName = row.getCell(5).getStringCellValue();
+	            	String rank = null;
+    				if (row.getCell(6) != null && row.getCell(6).getCellType() != CellType.NUMERIC) {
+    					rank = row.getCell(6).getStringCellValue();
+    				}
 	            	
 	            	if (namespaceName != null && namespaceName.equalsIgnoreCase(namespaceNameInFile)) {
-	            		return true;
+	            		return createMapping(tablename, id, namespaceName, namespaceId, null, null);
+	            		
 	            	} 
 	            	if (namespaceId != null && namespaceId.equalsIgnoreCase(namespaceIdInFile)) {
-	            		return true;
+	            		return createMapping(tablename, id, namespaceName, namespaceId, null, null);
 	            	}       	
-	            	break;
+	            	return createMapping (tablename, id, namespaceNameInFile, namespaceIdInFile, mappingName, rank);
             	}
             }
         }
-		
-		return false;
+        return null;
+	}
+	
+	class Disagreement {
+		String id;
+		String name;
+		List<String> namespaceNames = new ArrayList<>();
+		List<String> namespaceIds = new ArrayList<>();
+		List<String> mappingNames = new ArrayList<>();
+		List<String> ranks = new ArrayList<>();
 	}
 }

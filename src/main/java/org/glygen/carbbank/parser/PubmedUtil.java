@@ -116,17 +116,19 @@ public class PubmedUtil {
                 }
                 pub.setTitle(title);
                 
-                String journalString = "";
+               // String journalString = "";
 
                 // Journal
                 String journal = article.getElementsByTagName("ISOAbbreviation").item(0).getTextContent();
-                journalString += journal;
+                pub.setJournalName(journal);
+                //journalString += journal;
 
                 // Publication Date
                 Element pubDate = (Element) article.getElementsByTagName("PubDate").item(0);
                 Element year = (Element) pubDate.getElementsByTagName("Year").item(0);
                 if (year != null) {
-                	 journalString += " (" + year.getTextContent() + ")";
+                	 //journalString += " (" + year.getTextContent() + ")";
+                	pub.setYear(year.getTextContent());
                 }
                
                 
@@ -136,7 +138,8 @@ public class PubmedUtil {
                 String issue = getTagValue(journalIssue, "Issue");
                 
                 if (volume != null) {
-                	journalString += " " + volume;
+                	//journalString += " " + volume;
+                	pub.setVolume(volume);
                 }
 
                 Element pagination = (Element) article.getElementsByTagName("Pagination").item(0);
@@ -144,11 +147,12 @@ public class PubmedUtil {
                 	String start = getTagValue(pagination, "StartPage");
                 	String end = getTagValue(pagination, "EndPage");
                 	if (start != null && end != null) {
-                		journalString += ": " + start + "-" + end;
+                		//journalString += ": " + start + "-" + end;
+                		pub.setPageRange(start+"-"+end);
                 	}
                 	
                 }
-                pub.setJournal(journalString);
+                //pub.setJournal(journalString);
                 
                 // Authors
                 NodeList authors = article.getElementsByTagName("Author");
@@ -481,7 +485,7 @@ public class PubmedUtil {
     	try {
 			List<Publication> results = new PubmedUtil(null).getPublicationByTitle("Triterpenoid glycosides from Stauntonia hexaphylla");
 			for (Publication result: results) {
-				System.out.println (result.getTitle() + "\n" + result.getAuthor() + "\n" + result.getJournal());
+				System.out.println (result.getTitle() + "\n" + result.getAuthor() + "\n" + result.getJournalName());
 			}
 			
 			try {

@@ -1736,7 +1736,7 @@ public class CarbbankService {
 		String[] header = {"ID", "count", "name", "namespacename", "namespaceid", "mappingname", "rank", "matchCount"};
 		rows.add(header);
 		for (MappingCN m: allRows) {
-			if (m.getNamespaceName() == null) {
+			if (m.getNamespaceName() == null && (m.getInProgress() == null || !m.getInProgress())) {
 				String[] row = new String[8];
 				row[0] = m.getId()+"";
 				row[1] = m.getCount()+ "";
@@ -1781,7 +1781,7 @@ public class CarbbankService {
 		List<MappingGS> allGS = mappingGSRepository.findAll();
 		rows.add(header);
 		for (MappingGS m: allGS) {
-			if (m.getNamespaceName() == null) {
+			if (m.getNamespaceName() == null && (m.getInProgress() == null || !m.getInProgress())) {
 				String[] row = new String[8];
 				row[0] = m.getId()+"";
 				row[1] = m.getCount()+ "";
@@ -1826,7 +1826,7 @@ public class CarbbankService {
 		List<MappingDisease> allDisease = mappingDiseaseRepository.findAll();
 		rows.add(header);
 		for (MappingDisease m: allDisease) {
-			if (m.getNamespaceName() == null) {
+			if (m.getNamespaceName() == null && (m.getInProgress() == null || !m.getInProgress())) {
 				String[] row = new String[8];
 				row[0] = m.getId()+"";
 				row[1] = m.getCount()+ "";
@@ -1871,7 +1871,7 @@ public class CarbbankService {
 		List<MappingCellLine> allCell = mappingCellineRepository.findAll();
 		rows.add(header);
 		for (MappingCellLine m: allCell) {
-			if (m.getNamespaceName() == null) {
+			if (m.getNamespaceName() == null && (m.getInProgress() == null || !m.getInProgress())) {
 				String[] row = new String[8];
 				row[0] = m.getId()+"";
 				row[1] = m.getCount()+ "";
@@ -1916,7 +1916,7 @@ public class CarbbankService {
 		List<MappingOT> allTissue = mappingOTRepository.findAll();
 		rows.add(header);
 		for (MappingOT m: allTissue) {
-			if (m.getNamespaceName() == null) {
+			if (m.getNamespaceName() == null && (m.getInProgress() == null || !m.getInProgress())) {
 				String[] row = new String[8];
 				row[0] = m.getId()+"";
 				row[1] = m.getCount()+ "";
@@ -1961,7 +1961,7 @@ public class CarbbankService {
 		List<MappingST> allSt = mappingSTRepository.findAll();
 		rows.add(header);
 		for (MappingST m: allSt) {
-			if (m.getNamespaceName() == null) {
+			if (m.getNamespaceName() == null && (m.getInProgress() == null || !m.getInProgress())) {
 				String[] row = new String[8];
 				row[0] = m.getId()+"";
 				row[1] = m.getCount()+ "";

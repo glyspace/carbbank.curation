@@ -31,6 +31,7 @@ public class ComparisonUtil {
 	static Logger logger = org.slf4j.LoggerFactory.getLogger(ComparisonUtil.class);
 
 	public List<Mapping> compareFiles(List<String> fileList, String tablename) {
+		List<Mapping> processed = new ArrayList<>();
 		List<Mapping> agreements = new ArrayList<Mapping>();
 		List<Disagreement> disagreements = new ArrayList<>();
 		String first = fileList.get(0);
@@ -77,6 +78,10 @@ public class ComparisonUtil {
 	            	if (!namespaceName.isEmpty() || !namespaceId.isEmpty()) {
 	            		// check if it agrees with other files
 	            		boolean matchedAll = true;
+	            		dis.namespaceIds.add(namespaceId);
+    					dis.namespaceNames.add(namespaceName);
+    					dis.mappingNames.add(mappingName);
+    					dis.ranks.add(rank);
 	            		for (int i=1; i < fileList.size(); i++) {
 	            			Mapping matched = findInFile (fileList.get(i), id, namespaceId, namespaceName, tablename);
 	            			if (matched == null) {
@@ -84,10 +89,6 @@ public class ComparisonUtil {
 	            			} else {
 	            				if (!matched.getNamespaceId().equals(namespaceId)) {
 	            					matchedAll = false;
-	            					dis.namespaceIds.add(namespaceId);
-	            					dis.namespaceNames.add(namespaceName);
-	            					dis.mappingNames.add(mappingName);
-	            					dis.ranks.add(rank);
 	            					dis.namespaceIds.add(matched.getNamespaceId());
 	            					dis.namespaceNames.add(matched.getNamespaceName());
 	            					dis.mappingNames.add(matched.getMappingName());
@@ -105,11 +106,13 @@ public class ComparisonUtil {
             				Mapping mapping = createMapping (tablename, id, namespaceName, namespaceId, mappingName, rank);
             				mapping.setName(name);
             				agreements.add(mapping);
+            				processed.add(mapping);
             			} else {
             				// update progress status
             				Mapping mapping = createMapping(tablename, id, null, null, null, null);
             				mapping.setName(name);
             				disagreements.add(dis);
+            				processed.add(mapping);
             			}
 	            	}
 	            }
@@ -165,7 +168,7 @@ public class ComparisonUtil {
 			}
 			
 			CarbbankService.writeToExcel(rows, "Agreements", "Comparison" + tablename + new java.util.Date() + ".xlsx", rows2, "Disagreements");
-			return agreements;
+			return processed;
 		} catch (EncryptedDocumentException | IOException e) {
 			logger.error("Error comparing files", e);
 		} 
@@ -281,12 +284,12 @@ public class ComparisonUtil {
     					rank = row.getCell(6).getStringCellValue();
     				}
 	            	
-	            	if (namespaceName != null && namespaceName.equalsIgnoreCase(namespaceNameInFile)) {
-	            		return createMapping(tablename, id, namespaceName, namespaceId, null, null);
+	            	/*if (namespaceName != null && namespaceName.equalsIgnoreCase(namespaceNameInFile)) {
+	            		return createMapping(tablename, id, namespaceName, namespaceId, mappingName, rank);
 	            		
-	            	} 
+	            	} */
 	            	if (namespaceId != null && namespaceId.equalsIgnoreCase(namespaceIdInFile)) {
-	            		return createMapping(tablename, id, namespaceName, namespaceId, null, null);
+	            		return createMapping(tablename, id, namespaceName, namespaceId, mappingName, rank);
 	            	}       	
 	            	return createMapping (tablename, id, namespaceNameInFile, namespaceIdInFile, mappingName, rank);
             	}

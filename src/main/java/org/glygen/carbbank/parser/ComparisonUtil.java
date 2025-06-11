@@ -85,21 +85,24 @@ public class ComparisonUtil {
 	            		for (int i=1; i < fileList.size(); i++) {
 	            			Mapping matched = findInFile (fileList.get(i), id, namespaceId, namespaceName, tablename);
 	            			if (matched == null) {
-	            				matchedAll = false;
+	            				logger.error("Cannot find the matching row for " + id + " in file " + fileList.get(i));
+	            				continue;
 	            			} else {
 	            				if (!matched.getNamespaceId().equals(namespaceId)) {
 	            					matchedAll = false;
-	            					dis.namespaceIds.add(matched.getNamespaceId());
-	            					dis.namespaceNames.add(matched.getNamespaceName());
-	            					dis.mappingNames.add(matched.getMappingName());
-	            					if (matched instanceof MappingCN) {
-	            						dis.ranks.add(((MappingCN) matched).getRank());
-	            					} else if (matched instanceof MappingGS) {
-	            						dis.ranks.add(((MappingGS) matched).getRank());
-	            					} else if (matched instanceof MappingST) {
-	            						dis.ranks.add(((MappingST) matched).getRank());
-	            					}
 	            				}
+            					dis.namespaceIds.add(matched.getNamespaceId());
+            					dis.namespaceNames.add(matched.getNamespaceName());
+            					dis.mappingNames.add(matched.getMappingName());
+            					if (matched instanceof MappingCN) {
+            						dis.ranks.add(((MappingCN) matched).getRank());
+            					} else if (matched instanceof MappingGS) {
+            						dis.ranks.add(((MappingGS) matched).getRank());
+            					} else if (matched instanceof MappingST) {
+            						dis.ranks.add(((MappingST) matched).getRank());
+            					} else {
+            						dis.ranks.add(null);
+            					}
 	            			}
 	            		}
 	            		if (matchedAll) {
@@ -144,7 +147,7 @@ public class ComparisonUtil {
 			for (Disagreement m: disagreements) {
 				if (i == 0) {
 					List<String> header2 = new ArrayList<>(Arrays.asList(header));
-					int fileNo = m.namespaceIds.size();
+					int fileNo = fileList.size();
 					for (int j=1; j < fileNo; j++) {
 						header2.add("namespacename" + (j+1));
 						header2.add("namespaceid" + (j+1));
@@ -157,7 +160,7 @@ public class ComparisonUtil {
 				String[] row = new String[2+4*m.namespaceIds.size()];
 				row[0] = m.id + "";
 				row[1] = m.name;
-				for (int j=0; j < m.namespaceIds.size(); j++) {
+				for (int j=0; j < fileList.size(); j++) {
 					int index = 2+4*j;
 					row[index] = m.namespaceNames.get(j);
 					row[index+1] = m.namespaceIds.get(j);

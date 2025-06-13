@@ -256,30 +256,47 @@ public class CarbbankService {
 	
 	@Transactional
 	public void updateMappings (List<Mapping> mappings, String tablename) {
+		PubmedUtil util = new PubmedUtil(apiKey);
 		for (Mapping mapping: mappings) {
 			if (tablename.equalsIgnoreCase("mapping_bs_cn")) {
-				Optional<MappingCN> record = mappingCNRepository.findById(mapping.getId());
-				if (record.isPresent()) {
-					MappingCN existing = record.get();
-					existing.setInProgress(mapping.getInProgress());
-					existing.setMappingName(mapping.getMappingName());
-					existing.setNamespaceId(mapping.getNamespaceId());
-					existing.setNamespaceName(mapping.getNamespaceName());
-					existing.setRank(((MappingCN) mapping).getRank());
-					mappingCNRepository.save(existing);
+				try {
+					Species species = util.getSpeciesByID(mapping.getNamespaceId());
+					Optional<MappingCN> record = mappingCNRepository.findById(mapping.getId());
+					if (record.isPresent()) {
+						MappingCN existing = record.get();
+						if (!existing.getName().equalsIgnoreCase(species.getName())) {
+							existing.setMappingName(existing.getName());
+						}
+						existing.setInProgress(mapping.getInProgress());
+						existing.setNamespaceId(mapping.getNamespaceId());
+						existing.setNamespaceName(species.getName());
+						existing.setRank(species.getRank());
+						mappingCNRepository.save(existing);
+					}
+				} catch (IOException e) {
+					logger.error("Could not retrive species from NCBI Taxonomy for: " + mapping.getNamespaceId(), e);
 				}
 			} else if (tablename.equalsIgnoreCase("mapping_bs_gs")) {
-				Optional<MappingGS> record = mappingGSRepository.findById(mapping.getId());
-				if (record.isPresent()) {
-					MappingGS existing = record.get();
-					existing.setInProgress(mapping.getInProgress());
-					existing.setMappingName(mapping.getMappingName());
-					existing.setNamespaceId(mapping.getNamespaceId());
-					existing.setNamespaceName(mapping.getNamespaceName());
-					existing.setRank(((MappingGS) mapping).getRank());
-					mappingGSRepository.save(existing);
+				try {
+					Species species = util.getSpeciesByID(mapping.getNamespaceId());
+					Optional<MappingGS> record = mappingGSRepository.findById(mapping.getId());
+					if (record.isPresent()) {
+						MappingGS existing = record.get();
+						if (!existing.getName().equalsIgnoreCase(species.getName())) {
+							existing.setMappingName(existing.getName());
+						}
+						existing.setInProgress(mapping.getInProgress());
+						existing.setMappingName(mapping.getMappingName());
+						existing.setNamespaceId(mapping.getNamespaceId());
+						existing.setNamespaceName(species.getName());
+						existing.setRank(species.getRank());
+						mappingGSRepository.save(existing);
+					}
+				} catch (IOException e) {
+					logger.error("Could not retrive species from NCBI Taxonomy for: " + mapping.getNamespaceId(), e);
 				}
 			} else if (tablename.equalsIgnoreCase("mapping_bs_disease")) {
+				//TODO find the canonical form etc from the dictionary, not from the mapping
 				Optional<MappingDisease> record = mappingDiseaseRepository.findById(mapping.getId());
 				if (record.isPresent()) {
 					MappingDisease existing = record.get();
@@ -290,6 +307,7 @@ public class CarbbankService {
 					mappingDiseaseRepository.save(existing);
 				}
 			} else if (tablename.equalsIgnoreCase("mapping_bs_ot")) {
+				//TODO find the canonical form etc from the dictionary, not from the mapping
 				Optional<MappingOT> record = mappingOTRepository.findById(mapping.getId());
 				if (record.isPresent()) {
 					MappingOT existing = record.get();
@@ -300,6 +318,7 @@ public class CarbbankService {
 					mappingOTRepository.save(existing);
 				}
 			} else if (tablename.equalsIgnoreCase("mapping_bs_cellline")) {
+				//TODO find the canonical form etc from the dictionary, not from the mapping
 				Optional<MappingCellLine> record = mappingCellineRepository.findById(mapping.getId());
 				if (record.isPresent()) {
 					MappingCellLine existing = record.get();
@@ -1828,6 +1847,10 @@ public class CarbbankService {
 				// find records with this value
 				List<BS> bsList = bsRepository.findByCnIgnoreCase(m.getName());
 				Set<String> recordList = new HashSet<>();
+				if (bsList.isEmpty()) {
+					// contains query
+					bsList = bsRepository.findByCnContainingIgnoreCase(m.getName());
+				}
 				for (BS bs: bsList) {
 					String cc = bs.getRecord().getCC();
 					if (cc != null && cc.contains(":")) {
@@ -1872,6 +1895,10 @@ public class CarbbankService {
 				row[7] = m.getMatchCount() + "";
 				// find records with this value
 				List<BS> bsList = bsRepository.findByGsIgnoreCase(m.getName());
+				if (bsList.isEmpty()) {
+					// contains query
+					bsList = bsRepository.findByGsContainingIgnoreCase(m.getName());
+				}
 				Set<String> recordList = new HashSet<>();
 				for (BS bs: bsList) {
 					String cc = bs.getRecord().getCC();
@@ -1917,6 +1944,10 @@ public class CarbbankService {
 				row[7] = m.getMatchCount() + "";
 				// find records with this value
 				List<BS> bsList = bsRepository.findByDiseaseIgnoreCase(m.getName());
+				if (bsList.isEmpty()) {
+					// contains query
+					bsList = bsRepository.findByDiseaseContainingIgnoreCase(m.getName());
+				}
 				Set<String> recordList = new HashSet<>();
 				for (BS bs: bsList) {
 					String cc = bs.getRecord().getCC();
@@ -1962,6 +1993,10 @@ public class CarbbankService {
 				row[7] = m.getMatchCount() + "";
 				// find records with this value
 				List<BS> bsList = bsRepository.findByCelllineIgnoreCase(m.getName());
+				if (bsList.isEmpty()) {
+					// contains query
+					bsList = bsRepository.findByCelllineContainingIgnoreCase(m.getName());
+				}
 				Set<String> recordList = new HashSet<>();
 				for (BS bs: bsList) {
 					String cc = bs.getRecord().getCC();
@@ -2007,6 +2042,10 @@ public class CarbbankService {
 				row[7] = m.getMatchCount() + "";
 				// find records with this value
 				List<BS> bsList = bsRepository.findByOtIgnoreCase(m.getName());
+				if (bsList.isEmpty()) {
+					// contains query
+					bsList = bsRepository.findByOtContainingIgnoreCase(m.getName());
+				}
 				Set<String> recordList = new HashSet<>();
 				for (BS bs: bsList) {
 					String cc = bs.getRecord().getCC();
@@ -2052,6 +2091,10 @@ public class CarbbankService {
 				row[7] = m.getMatchCount() + "";
 				// find records with this value
 				List<ST> bsList = stRepository.findByValueIgnoreCase(m.getName());
+				if (bsList.isEmpty()) {
+					// contains query
+					bsList = stRepository.findByValueContainingIgnoreCase(m.getName());
+				}
 				Set<String> recordList = new HashSet<>();
 				for (ST bs: bsList) {
 					String cc = bs.getRecord().getCC();
@@ -2091,7 +2134,7 @@ public class CarbbankService {
 		String[] header2 = {"ID", "Title", "Authors", "Journal", "CarbbankPMID", "PMID", "DOI", "Match Details"};
 		rows.add(header2);
 		for (Publication m: allPublications) {
-			if (m.getPmid() == null) {
+			if (m.getPmid() == null && m.getDoiId() == null) {
 				String[] row = new String[8];
 				row[0] = m.getId() +"";
 				row[1] = m.getTitle();

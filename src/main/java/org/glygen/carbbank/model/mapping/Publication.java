@@ -1,6 +1,8 @@
 package org.glygen.carbbank.model.mapping;
 
 
+import org.apache.commons.text.similarity.LevenshteinDistance;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -93,7 +95,7 @@ public class Publication {
 	@Override
 	public boolean equals(Object obj) {
 		if (obj instanceof Publication) {
-			if (title != null && title.equalsIgnoreCase(((Publication) obj).getTitle())) {
+			if (title != null && ((Publication) obj).getTitle() != null && almostIdentical(title, ((Publication) obj).getTitle())) {
 				if (author != null) {
 					if (authorMatch(((Publication) obj).getAuthor())) {
 						return journalMatch (((Publication) obj));
@@ -101,13 +103,39 @@ public class Publication {
 				} else {
 					return journalMatch (((Publication) obj));
 				}
-			}
+			} 
 		}
 		return super.equals(obj);
 	}
 	
+	public static boolean almostIdentical (String text1, String text2) {
+		
+		// Normalize
+		String norm1 = normalize(text1);
+		String norm2 = normalize(text2);
+		
+		LevenshteinDistance ld = new LevenshteinDistance();
+		int distance = ld.apply(norm1, norm2);
+
+		// Similarity score
+		int maxLen = Math.max(norm1.length(), norm2.length());
+		double similarity = 1.0 - (double) distance / maxLen;
+		
+		if (similarity > 0.9)
+			return true;
+		return false;
+		
+	}
+	
+
+	private static String normalize(String input) {
+		return input.toLowerCase()
+				.replaceAll("[^a-z0-9 ]", "") 
+				.replaceAll("\\s+", " ").trim();
+	}
+	
 	public boolean journalMatch(Publication publication) {
-		if (this.journalName != null && this.journalName.equalsIgnoreCase(publication.getJournalName())) {
+		if (this.journalName != null && publication.getJournalName() != null && almostIdentical (this.journalName, publication.getJournalName())) {
 			// check if at least one of year or volume or page range matches
 			if (this.year != null && this.year.equalsIgnoreCase(publication.getYear())) {
 				return true;
@@ -146,20 +174,22 @@ public class Publication {
 			String[] authorList = this.author.split(";");
 			String lastNames1 = "";
 			for (String a: authorList) {
-				if (a.indexOf(" ") != -1) {
-					a = a.trim().substring(0, a.lastIndexOf(" "));
+				String trimmed = a.trim();
+				if (trimmed.indexOf(" ") != -1) {
+					trimmed =trimmed.substring(0, trimmed.lastIndexOf(" "));
 				}
-				lastNames1 += a.trim() + ";";
+				lastNames1 += trimmed.trim() + ";";
 			}
 			authorList = author2.split(";");
 			String lastNames2 = "";
 			for (String a: authorList) {
-				if (a.indexOf(" ") != -1) {
-					a = a.trim().substring(0, a.lastIndexOf(" "));
+				String trimmed = a.trim();
+				if (trimmed.indexOf(" ") != -1) {
+					trimmed = trimmed.substring(0, trimmed.lastIndexOf(" "));
 				}
-				lastNames2 += a.trim() + ";";
+				lastNames2 += trimmed.trim() + ";";
 			}
-			return lastNames1.equalsIgnoreCase(lastNames2);
+			return almostIdentical(lastNames1, lastNames2);
 		}
 		if (this.author == null && author2 == null) return true;
 		return false;

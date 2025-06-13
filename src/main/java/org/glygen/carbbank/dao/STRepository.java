@@ -12,4 +12,5 @@ public interface STRepository extends JpaRepository<ST, Long> {
 	
 	long countByValueIgnoreCase (String name);
 	List<ST> findByValueIgnoreCase (String name);
+	List<ST> findByValueContainingIgnoreCase(String name);
 }

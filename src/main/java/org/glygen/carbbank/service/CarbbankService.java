@@ -18,6 +18,7 @@ import org.apache.poi.common.usermodel.HyperlinkType;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.CreationHelper;
+import org.apache.poi.ss.usermodel.FillPatternType;
 import org.apache.poi.ss.usermodel.Font;
 import org.apache.poi.ss.usermodel.Hyperlink;
 import org.apache.poi.ss.usermodel.IndexedColors;
@@ -113,6 +114,7 @@ import org.glygen.carbbank.model.mapping.MappingTN;
 import org.glygen.carbbank.model.mapping.Publication;
 import org.glygen.carbbank.parser.CrossRefAPI;
 import org.glygen.carbbank.parser.PubmedUtil;
+import org.glygen.carbbank.util.CellIndex;
 import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -1822,7 +1824,7 @@ public class CarbbankService {
 		}
 		logger.info("Conflicting CN and GS:" + conflictList.size());
 		try {
-			writeToExcel(conflictList, "mappings", "CN_GS_Conflicts.xlsx", null, null);
+			writeToExcel(conflictList, "mappings", "CN_GS_Conflicts.xlsx", null, null, null);
 		} catch (IOException e) {
 			logger.error("Failed to write excel file for CN/GS conflicts", e);
 		}
@@ -1875,7 +1877,7 @@ public class CarbbankService {
 			}
 		}
 		try {
-			writeToExcel (rows, "Mappings", "mapping_BS_CN.xlsx", recordRows, "Records");
+			writeToExcel (rows, "Mappings", "mapping_BS_CN.xlsx", recordRows, "Records", null);
 		} catch (IOException e1) {
 			// TODO Auto-generated catch block
 			e1.printStackTrace();
@@ -1924,7 +1926,7 @@ public class CarbbankService {
 			}
 		}
 		try {
-			writeToExcel (rows, "Mappings", "mapping_BS_GS.xlsx", recordRows, "Records");
+			writeToExcel (rows, "Mappings", "mapping_BS_GS.xlsx", recordRows, "Records", null);
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -1973,7 +1975,7 @@ public class CarbbankService {
 			}
 		}
 		try {
-			writeToExcel (rows, "Mappings", "mapping_BS_Disease.xlsx", recordRows, "Records");
+			writeToExcel (rows, "Mappings", "mapping_BS_Disease.xlsx", recordRows, "Records", null);
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -2022,7 +2024,7 @@ public class CarbbankService {
 			}
 		}
 		try {
-			writeToExcel (rows, "Mappings", "mapping_BS_Cellline.xlsx", recordRows, "Records");
+			writeToExcel (rows, "Mappings", "mapping_BS_Cellline.xlsx", recordRows, "Records", null);
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -2071,7 +2073,7 @@ public class CarbbankService {
 			}
 		}
 		try {
-			writeToExcel (rows, "Mappings", "mapping_BS_Tissue.xlsx", recordRows, "Records");
+			writeToExcel (rows, "Mappings", "mapping_BS_Tissue.xlsx", recordRows, "Records", null);
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -2120,7 +2122,7 @@ public class CarbbankService {
 			}
 		}
 		try {
-			writeToExcel (rows, "Mappings", "mapping_ST.xlsx", recordRows, "Records");
+			writeToExcel (rows, "Mappings", "mapping_ST.xlsx", recordRows, "Records", null);
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -2135,19 +2137,69 @@ public class CarbbankService {
 		rows.add(header2);
 		for (Publication m: allPublications) {
 			if (m.getPmid() == null && m.getDoiId() == null) {
-				String[] row = new String[8];
-				row[0] = m.getId() +"";
-				row[1] = m.getTitle();
-				row[2] = m.getAuthor();
-				row[3] = m.getJournalName() + " (" + m.getYear() + ") " + m.getVolume() + ": " + m.getPageRange();
-				row[4] = m.getCarbbankPmid();
-				row[7] = m.getMatchDetails();
-				rows.add(row);
+				if (m.getMatchDetails() != null && !m.getMatchDetails().toLowerCase().contains("crossref")) {
+					String[] row = new String[8];
+					row[0] = m.getId() +"";
+					row[1] = m.getTitle();
+					row[2] = m.getAuthor();
+					row[3] = m.getJournalName() + " (" + m.getYear() + ") " + m.getVolume() + ": " + m.getPageRange();
+					row[4] = m.getCarbbankPmid();
+					row[7] = m.getMatchDetails();
+					rows.add(row);
+				}
 			}
 		}
 		
 		try {
-			writeToExcel (rows, "Publications", "carbbank_Publication.xlsx", null, null);
+			writeToExcel (rows, "Publications", "carbbank_Publication-PubmedMatches.xlsx", null, null, null);
+		} catch (IOException e1) {
+			logger.error("Error generating Excel file for Publications", e1);
+		}
+		
+		rows = new ArrayList<>();
+		recordMap = new HashMap<>();
+		rows.add(header2);
+		for (Publication m: allPublications) {
+			if (m.getPmid() == null && m.getDoiId() == null) {
+				if (m.getMatchDetails() != null && m.getMatchDetails().toLowerCase().contains("crossref")) {
+					String[] row = new String[8];
+					row[0] = m.getId() +"";
+					row[1] = m.getTitle();
+					row[2] = m.getAuthor();
+					row[3] = m.getJournalName() + " (" + m.getYear() + ") " + m.getVolume() + ": " + m.getPageRange();
+					row[4] = m.getCarbbankPmid();
+					row[7] = m.getMatchDetails();
+					rows.add(row);
+				}
+			}
+		}
+		
+		try {
+			writeToExcel (rows, "Publications", "carbbank_Publication-CrossRefMatches.xlsx", null, null, null);
+		} catch (IOException e1) {
+			logger.error("Error generating Excel file for Publications", e1);
+		}
+		
+		rows = new ArrayList<>();
+		recordMap = new HashMap<>();
+		rows.add(header2);
+		for (Publication m: allPublications) {
+			if (m.getPmid() == null && m.getDoiId() == null) {
+				if (m.getMatchDetails() == null || m.getMatchDetails().isEmpty()) {
+					String[] row = new String[8];
+					row[0] = m.getId() +"";
+					row[1] = m.getTitle();
+					row[2] = m.getAuthor();
+					row[3] = m.getJournalName() + " (" + m.getYear() + ") " + m.getVolume() + ": " + m.getPageRange();
+					row[4] = m.getCarbbankPmid();
+					row[7] = m.getMatchDetails();
+					rows.add(row);
+				}
+			}
+		}
+		
+		try {
+			writeToExcel (rows, "Publications", "carbbank_Publication-NoMatches.xlsx", null, null, null);
 		} catch (IOException e1) {
 			logger.error("Error generating Excel file for Publications", e1);
 		}
@@ -2172,7 +2224,7 @@ public class CarbbankService {
 		return matches;
 	}
 	
-	public static void writeToExcel (List<String[]> rows, String sheetName, String filename, List<String[]> records, String sheetName2) throws IOException {
+	public static void writeToExcel (List<String[]> rows, String sheetName, String filename, List<String[]> records, String sheetName2, List<CellIndex> highlight) throws IOException {
 		FileOutputStream excelWriter = new FileOutputStream(filename);
 		Workbook workbook = new XSSFWorkbook();
 		
@@ -2193,6 +2245,13 @@ public class CarbbankService {
         hlinkFont.setUnderline(Font.U_SINGLE);
         hlinkFont.setColor(IndexedColors.BLUE.getIndex());
         hlinkStyle.setFont(hlinkFont);
+        
+
+        // Create a cell style with a yellow background
+        CellStyle style = workbook.createCellStyle();
+        style.setFillForegroundColor(IndexedColors.YELLOW.getIndex());
+        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+
         
         // first row is the header row
         if (rows.size() > 0) {
@@ -2240,6 +2299,16 @@ public class CarbbankService {
 	    				link.setAddress("https://www.genome.jp/dbget-bin/www_bget?carbbank+" + col);
 	    				cell.setHyperlink(link);
 	    				cell.setCellStyle(hlinkStyle);
+    				}
+    				
+    				if (highlight != null) {
+    					for (CellIndex index: highlight) {
+    						if (index.getRow() == entry.getRowNum() && index.getCol() == cell.getColumnIndex()) {
+    							// highlight the cell
+    							cell.setCellStyle(style);
+    							break;
+    						}
+    					}
     				}
         		}
         	}

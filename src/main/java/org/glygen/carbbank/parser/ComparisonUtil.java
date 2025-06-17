@@ -14,6 +14,7 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
+import org.glygen.carbbank.model.Species;
 import org.glygen.carbbank.model.mapping.Mapping;
 import org.glygen.carbbank.model.mapping.MappingCN;
 import org.glygen.carbbank.model.mapping.MappingCellLine;
@@ -22,6 +23,7 @@ import org.glygen.carbbank.model.mapping.MappingGS;
 import org.glygen.carbbank.model.mapping.MappingOT;
 import org.glygen.carbbank.model.mapping.MappingST;
 import org.glygen.carbbank.service.CarbbankService;
+import org.glygen.carbbank.util.CellIndex;
 import org.slf4j.Logger;
 import org.springframework.stereotype.Service;
 
@@ -29,6 +31,9 @@ import org.springframework.stereotype.Service;
 public class ComparisonUtil {
 	
 	static Logger logger = org.slf4j.LoggerFactory.getLogger(ComparisonUtil.class);
+	
+	PubmedUtil util = new PubmedUtil(null);
+	List<CellIndex> errorCells = new ArrayList<>();
 
 	public List<Mapping> compareFiles(List<String> fileList, String tablename) {
 		List<Mapping> processed = new ArrayList<>();
@@ -41,12 +46,13 @@ public class ComparisonUtil {
 			Sheet mappings = workbook.getSheetAt(0);
 			Iterator<Row> rowIterator = mappings.iterator();
 			int count = 0;
-	        while (rowIterator.hasNext()) {
+			while (rowIterator.hasNext()) {
 	            Row row = rowIterator.next();
 	            if (count == 0) {
 	            	count = 1;
 	            	continue;
 	            } else {
+	            	List<Integer> errorCell = new ArrayList<>();
 	            	Disagreement dis = new Disagreement();
 	            	String id = null;
 	            	Cell idCell = row.getCell(0);
@@ -75,6 +81,23 @@ public class ComparisonUtil {
 	            	} else {
 	            		namespaceId = namespaceIdCell.getStringCellValue();
 	            	}
+	            	
+	            	if (namespaceId != null && namespaceId.matches("-?\\d+(\\.\\d+)?")) {
+		            	// check if namespaceid and namespacename agree according to NCBI taxonomy
+	    				// if not, add the row into ErrorCells
+	    				Species spec = util.getSpeciesByID(namespaceId);
+	    				if (spec == null) {
+	    					errorCell.add(3);
+	    				} else if (spec.getName() != null && namespaceName != null && !spec.getName().trim().equalsIgnoreCase(namespaceName.trim())) {
+	            			errorCell.add(2);
+	            		}
+	            	}
+            		
+            		try {
+				        Thread.sleep(500); // wait 400 milliseconds between requests
+				    } catch (InterruptedException e) {
+				        Thread.currentThread().interrupt(); // restore interrupted status
+				    }
 	            	if (!namespaceName.isEmpty() || !namespaceId.isEmpty()) {
 	            		// check if it agrees with other files
 	            		boolean matchedAll = true;
@@ -86,8 +109,29 @@ public class ComparisonUtil {
 	            			Mapping matched = findInFile (fileList.get(i), id, namespaceId, namespaceName, tablename);
 	            			if (matched == null) {
 	            				logger.error("Cannot find the matching row for " + id + " in file " + fileList.get(i));
+	            				dis.namespaceIds.add(null);
+            					dis.namespaceNames.add(null);
+            					dis.mappingNames.add(null);
+            					dis.ranks.add(null);
 	            				continue;
 	            			} else {
+	            				
+	            				if (matched.getNamespaceId() != null && matched.getNamespaceId().matches("-?\\d+(\\.\\d+)?")) {
+	        	    				// check to see if namespaceId and namespacename from NCBI agree
+	        	            		Species spec = util.getSpeciesByID(matched.getNamespaceId());
+	        	            		if (spec == null) {
+	        	            			errorCell.add(i*4 + 3);
+	        	            		} else if (spec.getName() != null && matched.getNamespaceName() != null &&
+	        	            				!spec.getName().trim().equalsIgnoreCase(matched.getNamespaceName().trim())) {
+	        	            			errorCell.add(i*4 + 2);
+	        	            		}
+	        	            		
+	        						try {
+	        					        Thread.sleep(500); // wait 400 milliseconds between requests
+	        					    } catch (InterruptedException e) {
+	        					        Thread.currentThread().interrupt(); // restore interrupted status
+	        					    }
+	            				}
 	            				if (!matched.getNamespaceId().equals(namespaceId)) {
 	            					matchedAll = false;
 	            				}
@@ -115,6 +159,9 @@ public class ComparisonUtil {
             				Mapping mapping = createMapping(tablename, id, null, null, null, null);
             				mapping.setName(name);
             				disagreements.add(dis);
+            				for (Integer col: errorCell) {
+            					errorCells.add(new CellIndex (disagreements.size(), col));
+            				}
             				processed.add(mapping);
             			}
 	            	}
@@ -170,7 +217,7 @@ public class ComparisonUtil {
 				rows2.add(row);
 			}
 			
-			CarbbankService.writeToExcel(rows, "Agreements", "Comparison" + tablename + new java.util.Date() + ".xlsx", rows2, "Disagreements");
+			CarbbankService.writeToExcel(rows, "Agreements", "Comparison" + tablename + new java.util.Date() + ".xlsx", rows2, "Disagreements", errorCells);
 			return processed;
 		} catch (EncryptedDocumentException | IOException e) {
 			logger.error("Error comparing files", e);
@@ -291,6 +338,7 @@ public class ComparisonUtil {
 	            		return createMapping(tablename, id, namespaceName, namespaceId, mappingName, rank);
 	            		
 	            	} */
+					
 	            	if (namespaceId != null && namespaceId.equalsIgnoreCase(namespaceIdInFile)) {
 	            		return createMapping(tablename, id, namespaceName, namespaceId, mappingName, rank);
 	            	}       	

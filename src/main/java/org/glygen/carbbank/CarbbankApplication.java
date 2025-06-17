@@ -45,10 +45,10 @@ public class CarbbankApplication {
 	    		try {
 	    			List<Map<String, String>> records = CarbbankUtil.parseFile(carbbankFile.get(0));
 	    			service.saveRecords(records);
-	    			service.createMappingTables();
-	    			service.addBSInformation();
-	    			service.addPMIDs();
-	    			service.generateExcelFiles();
+	    	//		service.createMappingTables();
+	    	//		service.addBSInformation();
+	    	//		service.addPMIDs();
+	    	//		service.generateExcelFiles();
 				} catch (IOException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
@@ -59,7 +59,7 @@ public class CarbbankApplication {
 	    	//service.createMappingTables();
 	    	//service.addBSInformation();
 	    	//service.findConflictsInSpecies();
-	    	service.addPMIDs();
+	    	//service.addPMIDs();
 	    	service.generateExcelFiles();
 	    }
 	}

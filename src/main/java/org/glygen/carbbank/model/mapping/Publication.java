@@ -39,6 +39,13 @@ public class Publication {
 	@Column(length=4000)
 	String matchDetails;
 	
+	@Column
+	Double journalMatchScore = 1.0;
+	@Column
+	Double titleMatchScore = 1.0;
+	@Column
+	Double authorMatchScore = 1.0;
+	
 	public String getMatchDetails() {
 		return matchDetails;
 	}
@@ -95,20 +102,24 @@ public class Publication {
 	@Override
 	public boolean equals(Object obj) {
 		if (obj instanceof Publication) {
-			if (title != null && ((Publication) obj).getTitle() != null && almostIdentical(title, ((Publication) obj).getTitle())) {
-				if (author != null) {
-					if (authorMatch(((Publication) obj).getAuthor())) {
+			if (title != null && ((Publication) obj).getTitle() != null) {
+				double titleScore = almostIdentical(title, ((Publication) obj).getTitle());
+				this.titleMatchScore = titleScore;
+				if (titleScore > 0.9) {
+					if (author != null) {
+						if (authorMatch(((Publication) obj).getAuthor())) {
+							return journalMatch (((Publication) obj));
+						}
+					} else {
 						return journalMatch (((Publication) obj));
 					}
-				} else {
-					return journalMatch (((Publication) obj));
 				}
 			} 
 		}
 		return super.equals(obj);
 	}
 	
-	public static boolean almostIdentical (String text1, String text2) {
+	public static double almostIdentical (String text1, String text2) {
 		
 		// Normalize
 		String norm1 = normalize(text1);
@@ -121,10 +132,7 @@ public class Publication {
 		int maxLen = Math.max(norm1.length(), norm2.length());
 		double similarity = 1.0 - (double) distance / maxLen;
 		
-		if (similarity > 0.9)
-			return true;
-		return false;
-		
+		return similarity;
 	}
 	
 
@@ -135,16 +143,36 @@ public class Publication {
 	}
 	
 	public boolean journalMatch(Publication publication) {
-		if (this.journalName != null && publication.getJournalName() != null && almostIdentical (this.journalName, publication.getJournalName())) {
-			// check if at least one of year or volume or page range matches
-			if (this.year != null && this.year.equalsIgnoreCase(publication.getYear())) {
-				return true;
-			}
-			if (this.volume != null && this.volume.equalsIgnoreCase(publication.getVolume())) {
-				return true;
-			}
-			if (this.pageRange != null && this.pageRange.equalsIgnoreCase(publication.getPageRange())) {
-				return true;
+		if (this.journalName != null && publication.getJournalName() != null) {
+			double score = almostIdentical (this.journalName, publication.getJournalName());
+			this.journalMatchScore = score;
+			if (score > 0.9) {
+				// check if at least one of year or volume or page range matches
+				if (this.year != null && this.year.equalsIgnoreCase(publication.getYear())) {
+					return true;
+				}
+				if (this.volume != null && this.volume.equalsIgnoreCase(publication.getVolume())) {
+					return true;
+				}
+				if (this.pageRange != null && this.pageRange.equalsIgnoreCase(publication.getPageRange())) {
+					return true;
+				}
+			} else {
+				// check if others match
+				if (this.year != null && this.year.equalsIgnoreCase(publication.getYear())) {
+					if (this.volume != null && this.volume.equalsIgnoreCase(publication.getVolume())) {
+						return true;
+					}
+					if (this.pageRange != null && this.pageRange.equalsIgnoreCase(publication.getPageRange())) {
+						return true;
+					}
+				} else {
+					if (this.volume != null && this.volume.equalsIgnoreCase(publication.getVolume())) {
+						if (this.pageRange != null && this.pageRange.equalsIgnoreCase(publication.getPageRange())) {
+							return true;
+						}
+					}
+				}
 			}
 		} else {
 			// check if others match
@@ -189,7 +217,9 @@ public class Publication {
 				}
 				lastNames2 += trimmed.trim() + ";";
 			}
-			return almostIdentical(lastNames1, lastNames2);
+			double score = almostIdentical(lastNames1, lastNames2);
+			this.authorMatchScore = score;
+			return score > 0.9;
 		}
 		if (this.author == null && author2 == null) return true;
 		return false;
@@ -240,6 +270,30 @@ public class Publication {
 
 	public void setPageRange(String pageRange) {
 		this.pageRange = pageRange;
+	}
+
+	public Double getJournalMatchScore() {
+		return journalMatchScore;
+	}
+
+	public void setJournalMatchScore(Double journalMatchScore) {
+		this.journalMatchScore = journalMatchScore;
+	}
+
+	public Double getTitleMatchScore() {
+		return titleMatchScore;
+	}
+
+	public void setTitleMatchScore(Double titleMatchScore) {
+		this.titleMatchScore = titleMatchScore;
+	}
+
+	public Double getAuthorMatchScore() {
+		return authorMatchScore;
+	}
+
+	public void setAuthorMatchScore(Double authorMatchScore) {
+		this.authorMatchScore = authorMatchScore;
 	}
 
 }

@@ -2203,6 +2203,37 @@ public class CarbbankService {
 		} catch (IOException e1) {
 			logger.error("Error generating Excel file for Publications", e1);
 		}
+		
+		rows = new ArrayList<>();
+		recordMap = new HashMap<>();
+		rows.add(header2);
+		List<CellIndex> highlight = new ArrayList<>();
+		int rowIndex = 1;
+		for (Publication m: allPublications) {
+			if (m.getPmid() != null || m.getDoiId() != null) {
+				String[] row = new String[8];
+				row[0] = m.getId() +"";
+				row[1] = m.getTitle();
+				row[2] = m.getAuthor();
+				row[3] = m.getJournalName() + " (" + m.getYear() + ") " + m.getVolume() + ": " + m.getPageRange();
+				row[4] = m.getCarbbankPmid();
+				row[5] = m.getPmid();
+				row[6] = m.getDoiId();
+				row[7] = m.getMatchDetails();
+				rows.add(row);
+				if (m.getPmid() != null && m.getCarbbankPmid() != null && !m.getPmid().equalsIgnoreCase(m.getCarbbankPmid())) {
+					highlight.add(new CellIndex(rowIndex, 4));
+				}
+				rowIndex++;
+				
+			}
+		}
+		
+		try {
+			writeToExcel (rows, "Publications", "carbbank_Publication-Matches.xlsx", null, null, highlight);
+		} catch (IOException e1) {
+			logger.error("Error generating Excel file for Publications", e1);
+		}
 	}
 	
 	
@@ -2272,6 +2303,16 @@ public class CarbbankService {
         			Cell cell = entry.createCell(j++);
         			cell.setCellStyle(wrapTextStyle);
     				cell.setCellValue(col);
+    				
+    				if (records == null && highlight != null) {
+    					for (CellIndex index: highlight) {
+    						if (index.getRow() == entry.getRowNum() && index.getCol() == cell.getColumnIndex()) {
+    							// highlight the cell
+    							cell.setCellStyle(style);
+    							break;
+    						}
+    					}
+    				}
            		}
         	}
         }

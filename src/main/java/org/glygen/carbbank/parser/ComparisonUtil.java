@@ -82,22 +82,30 @@ public class ComparisonUtil {
 	            		namespaceId = namespaceIdCell.getStringCellValue();
 	            	}
 	            	
-	            	if (namespaceId != null && namespaceId.matches("-?\\d+(\\.\\d+)?")) {
-		            	// check if namespaceid and namespacename agree according to NCBI taxonomy
-	    				// if not, add the row into ErrorCells
-	    				Species spec = util.getSpeciesByID(namespaceId);
-	    				if (spec == null) {
-	    					errorCell.add(3);
-	    				} else if (spec.getName() != null && namespaceName != null && !spec.getName().trim().equalsIgnoreCase(namespaceName.trim())) {
-	            			errorCell.add(2);
-	            		}
+	            	if (tablename.equalsIgnoreCase("mapping_bs_cn") || tablename.equalsIgnoreCase("mapping_bs_gs")) {
+		            	if (namespaceId != null && namespaceId.matches("-?\\d+(\\.\\d+)?")) {
+			            	// check if namespaceid and namespacename agree according to NCBI taxonomy
+		    				// if not, add the row into ErrorCells
+		            		try {
+			    				Species spec = util.getSpeciesByID(namespaceId);
+			    				if (spec == null) {
+			    					errorCell.add(3);
+			    				} else if (spec.getName() != null && namespaceName != null && !spec.getName().trim().equalsIgnoreCase(namespaceName.trim())) {
+			            			errorCell.add(2);
+			            		}
+		            		} catch (IOException e) {
+	    						logger.error ("Could not get species with the given id:\"" + namespaceId + "\"", e);
+	    						errorCell.add(3);
+	    					}
+		            		
+		            		try {
+						        Thread.sleep(500); // wait 400 milliseconds between requests
+						    } catch (InterruptedException e) {
+						        Thread.currentThread().interrupt(); // restore interrupted status
+						    }
+		            	}
 	            	}
             		
-            		try {
-				        Thread.sleep(500); // wait 400 milliseconds between requests
-				    } catch (InterruptedException e) {
-				        Thread.currentThread().interrupt(); // restore interrupted status
-				    }
 	            	if (!namespaceName.isEmpty() || !namespaceId.isEmpty()) {
 	            		// check if it agrees with other files
 	            		boolean matchedAll = true;
@@ -115,22 +123,28 @@ public class ComparisonUtil {
             					dis.ranks.add(null);
 	            				continue;
 	            			} else {
-	            				
-	            				if (matched.getNamespaceId() != null && matched.getNamespaceId().matches("-?\\d+(\\.\\d+)?")) {
-	        	    				// check to see if namespaceId and namespacename from NCBI agree
-	        	            		Species spec = util.getSpeciesByID(matched.getNamespaceId());
-	        	            		if (spec == null) {
-	        	            			errorCell.add(i*4 + 3);
-	        	            		} else if (spec.getName() != null && matched.getNamespaceName() != null &&
-	        	            				!spec.getName().trim().equalsIgnoreCase(matched.getNamespaceName().trim())) {
-	        	            			errorCell.add(i*4 + 2);
-	        	            		}
-	        	            		
-	        						try {
-	        					        Thread.sleep(500); // wait 400 milliseconds between requests
-	        					    } catch (InterruptedException e) {
-	        					        Thread.currentThread().interrupt(); // restore interrupted status
-	        					    }
+	            				if (tablename.equalsIgnoreCase("mapping_bs_cn") || tablename.equalsIgnoreCase("mapping_bs_gs")) {
+		            				if (matched.getNamespaceId() != null && matched.getNamespaceId().matches("-?\\d+(\\.\\d+)?")) {
+		            					try {
+			        	    				// check to see if namespaceId and namespacename from NCBI agree
+			        	            		Species spec = util.getSpeciesByID(matched.getNamespaceId());
+			        	            		if (spec == null) {
+			        	            			errorCell.add(i*4 + 3);
+			        	            		} else if (spec.getName() != null && matched.getNamespaceName() != null &&
+			        	            				!spec.getName().trim().equalsIgnoreCase(matched.getNamespaceName().trim())) {
+			        	            			errorCell.add(i*4 + 2);
+			        	            		}
+		            					} catch (IOException e) {
+		            						logger.error ("Could not get species with the given id:\"" + matched.getNamespaceId() + "\"", e);
+		            						errorCell.add(i*4 + 3);
+		            					}
+		        	            		
+		        						try {
+		        					        Thread.sleep(500); // wait 400 milliseconds between requests
+		        					    } catch (InterruptedException e) {
+		        					        Thread.currentThread().interrupt(); // restore interrupted status
+		        					    }
+		            				}
 	            				}
 	            				if (!matched.getNamespaceId().equals(namespaceId)) {
 	            					matchedAll = false;

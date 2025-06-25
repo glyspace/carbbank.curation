@@ -59,7 +59,7 @@ public class CarbbankApplication {
 	    	//service.createMappingTables();
 	    	//service.addBSInformation();
 	    	//service.findConflictsInSpecies();
-	    	//service.addPMIDs();
+	    	service.addPMIDs();
 	    	service.generateExcelFiles();
 	    }
 	}

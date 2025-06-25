@@ -1167,7 +1167,7 @@ public class CarbbankService {
 						pub.setMatchCount(matches.size()+"");
 						if (!matches.isEmpty()) {
 							for (Publication m: matches) {
-								if (pub.equals(m)) {
+								if (m.equals(pub)) {
 									pub.setPmid(m.getPmid());
 									pub.setDoiId(m.getDoiId());
 									pub.setAuthorMatchScore(m.getAuthorMatchScore());
@@ -1206,9 +1206,12 @@ public class CarbbankService {
 							pub.setMatchCount(crossRefMatches.size()+"");
 							if (!crossRefMatches.isEmpty()) {
 								for (Publication m: crossRefMatches) {
-									if (pub.equals(m)) {
+									if (m.equals(pub)) {
 										pub.setPmid(m.getPmid());
 										pub.setDoiId(m.getDoiId());
+										pub.setAuthorMatchScore(m.getAuthorMatchScore());
+										pub.setTitleMatchScore(m.getTitleMatchScore());
+										pub.setJournalMatchScore(m.getJournalMatchScore());
 										break;
 									}
 								}

@@ -109,9 +109,20 @@ public class Publication {
 					if (author != null) {
 						if (authorMatch(((Publication) obj).getAuthor())) {
 							return journalMatch (((Publication) obj));
+						} else {
+							double aScore = almostIdentical(author, ((Publication) obj).getAuthor());
+							if (aScore > 0.5) {
+								return journalMatch (((Publication) obj));
+							}
 						}
 					} else {
 						return journalMatch (((Publication) obj));
+					}
+				} else {
+					if (author != null) {
+						if (authorMatch(((Publication) obj).getAuthor())) {
+							return journalMatch (((Publication) obj));
+						}
 					}
 				}
 			} 
@@ -195,9 +206,9 @@ public class Publication {
 	}
 
 	public boolean authorMatch (String author2) {
-		if (this.author != null && this.author.equalsIgnoreCase(author2))
-			return true;
 		if (this.author != null && author2 != null) {
+			double aScore = almostIdentical(this.author, author2);
+			if (aScore > 0.9) return true;
 			// use only last names to match
 			String[] authorList = this.author.split(";");
 			String lastNames1 = "";

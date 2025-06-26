@@ -2,6 +2,7 @@ package org.glygen.carbbank.model.mapping;
 
 
 import org.apache.commons.text.similarity.LevenshteinDistance;
+import org.glygen.carbbank.parser.PubmedUtil;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -109,7 +110,7 @@ public class Publication {
 					if (author != null) {
 						if (authorMatch(((Publication) obj).getAuthor())) {
 							return journalMatch (((Publication) obj));
-						} else {
+						} else if (((Publication) obj).getAuthor() != null) {
 							double aScore = almostIdentical(author, ((Publication) obj).getAuthor());
 							if (aScore > 0.5) {
 								return journalMatch (((Publication) obj));
@@ -230,7 +231,37 @@ public class Publication {
 			}
 			double score = almostIdentical(lastNames1, lastNames2);
 			this.authorMatchScore = score;
-			return score > 0.9;
+			if (score > 0.9) return true;
+			else {
+				// check other variations
+				authorList = author2.split(";");
+				lastNames2 = "";
+				for (String a: authorList) {
+					String trimmed = a.trim();
+					if (trimmed.indexOf(" ") != -1) {
+						trimmed = trimmed.substring(0, trimmed.lastIndexOf(" "));
+					}
+					lastNames2 += PubmedUtil.replaceUmlaut(trimmed.trim()) + ";";
+				}
+				score = almostIdentical(lastNames1, lastNames2);
+				this.authorMatchScore = score;
+				if (score > 0.9) return true;
+				else {
+					// check other variations
+					authorList = author2.split(";");
+					lastNames2 = "";
+					for (String a: authorList) {
+						String trimmed = a.trim();
+						if (trimmed.indexOf(" ") != -1) {
+							trimmed = trimmed.substring(0, trimmed.lastIndexOf(" "));
+						}
+						lastNames2 += PubmedUtil.ignoreUmlaut(trimmed.trim()) + ";";
+					}
+					score = almostIdentical(lastNames1, lastNames2);
+					this.authorMatchScore = score;
+					return score > 0.9;
+				}
+			}
 		}
 		if (this.author == null && author2 == null) return true;
 		return false;

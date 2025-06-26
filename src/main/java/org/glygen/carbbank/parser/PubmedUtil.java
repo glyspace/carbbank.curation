@@ -42,7 +42,8 @@ public class PubmedUtil {
 	public List<Publication> getPublicationByTitle (String title) throws IOException {
 		List<Publication> results = new ArrayList<>();
 		
-		title = title.replaceAll("\n", " ");
+		title = title.replace("\n", " ");
+		title = title.replace(".", "");
 		String encodedTitle = title.replace(" ", "+");
 		
 		encodedTitle = URLEncoder.encode(title, StandardCharsets.UTF_8);
@@ -162,7 +163,7 @@ public class PubmedUtil {
                     String lastName = getTagValue(author, "LastName");
                     String foreName = getTagValue(author, "Initials");
                     if (lastName != null && foreName != null) {
-                        authorList += replaceUmlaut(lastName) + " " + replaceUmlaut(foreName) + "; ";
+                        authorList += lastName + " " + foreName + "; ";
                     }
                 }
                 if (!authorList.isEmpty() && authorList.trim().length() > 1)
@@ -460,7 +461,7 @@ public class PubmedUtil {
 		return results;
 	}
     
-    private static String replaceUmlaut(String input) {
+    public static String replaceUmlaut(String input) {
     	 
         // replace all lower Umlauts
         String output = input.replace("ü", "ue")
@@ -481,11 +482,35 @@ public class PubmedUtil {
         return output;
     }
     
+    public static String ignoreUmlaut(String input) {
+   	 
+        // replace all lower Umlauts
+        String output = input.replace("ü", "u")
+                             .replace("ö", "o")
+                             .replace("ä", "a")
+                             .replace("ß", "b")
+                             .replace("ó", "o")
+                             .replace("é", "e")
+                             .replace("á", "a");
+    
+        // first replace all capital Umlauts in a non-capitalized context (e.g. Übung)
+        output = output.replaceAll("Ü(?=[a-zäöüß ])", "U")
+                       .replaceAll("Ö(?=[a-zäöüß ])", "O")
+                       .replaceAll("Ä(?=[a-zäöüß ])", "A");
+    
+        // now replace all the other capital Umlauts
+        output = output.replace("Ü", "U")
+                       .replace("Ö", "O")
+                       .replace("Ä", "A");
+    
+        return output;
+    }
+    
     public static void main(String[] args) {
     	try {
-			List<Publication> results = new PubmedUtil(null).getPublicationByTitle("Triterpenoid glycosides from Stauntonia hexaphylla");
+			List<Publication> results = new PubmedUtil(null).getPublicationByTitle("Synthesis of p-trifluoroacetamidophenyl 6-deoxy-2-O-{3-O-[2-O-methyl-3-O-(2-O-methyl-.alpha.-D-rhamnopyranosyl)-.alpha.-L-fucopyranosyl]-.alpha.-L-rhamnopyranosyl}-.alpha.-L-talopyranoside: a spacer armed tetrasaccharide glycopeptidolipid antigen of Mycobacterium avium serovar 20");
 			for (Publication result: results) {
-				System.out.println (result.getTitle() + "\n" + result.getAuthor() + "\n" + result.getJournalName());
+				System.out.println (result.getTitle() + "\n" + PubmedUtil.ignoreUmlaut(result.getAuthor()) + "\n" + result.getJournalName());
 			}
 			
 			try {
@@ -494,7 +519,7 @@ public class PubmedUtil {
 		        Thread.currentThread().interrupt(); // restore interrupted status
 		    }
 			
-			Boolean result = new PubmedUtil(null).checkIfSameHierarchy("499", "500");
+		/*	Boolean result = new PubmedUtil(null).checkIfSameHierarchy("499", "500");
 			System.out.println ("They are in the same hierarchy? " + result);
 			
 			try {
@@ -505,7 +530,7 @@ public class PubmedUtil {
 			
 			Species species = new PubmedUtil(null).findCommonAncestor("4498", "50455");
 			if (species != null)
-				System.out.println ("Common parent: " + species.getName() + " id: "+ species.getId() + " rank: " + species.getRank());
+				System.out.println ("Common parent: " + species.getName() + " id: "+ species.getId() + " rank: " + species.getRank());*/
 		} catch (IOException e) { 
 			// TODO Auto-generated catch block
 			e.printStackTrace();

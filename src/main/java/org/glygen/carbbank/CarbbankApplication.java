@@ -38,8 +38,12 @@ public class CarbbankApplication {
 			List<String> filenames = args.getOptionValues("file");
 			List<Mapping> mappings = new ComparisonUtil().compareFiles(filenames, tablenames.get(0));
 			//service.updateMappings(mappings, tablenames.get(0));
-		}
-		else if (args.containsOption("file")) {
+		} else if (args.containsOption("publication")) {
+			List<String> filenames = args.getOptionValues("file");
+			for (String filename: filenames) {
+				service.addPublicationsFromFile(filename);
+			}
+		} else if (args.containsOption("file")) {
 	    	List<String> carbbankFile = args.getOptionValues("file");
 	    	if (!carbbankFile.isEmpty()) {
 	    		try {
@@ -59,7 +63,7 @@ public class CarbbankApplication {
 	    	//service.createMappingTables();
 	    	//service.addBSInformation();
 	    	//service.findConflictsInSpecies();
-	    	service.addPMIDs();
+	    	//service.addPMIDs();
 	    	service.generateExcelFiles();
 	    }
 	}

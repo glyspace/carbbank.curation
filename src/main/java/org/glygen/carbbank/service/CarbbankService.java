@@ -395,9 +395,11 @@ public class CarbbankService {
 		            	} else {
 		            		pmid = pmidCell.getStringCellValue();
 		            	}
+	            		pmid = pmid.trim();
 	            	}
 	            	String doi = row.getCell(6).getStringCellValue();
-	            	if (doi != null) {
+	            	if (doi != null && !doi.isEmpty()) {
+	            		doi = doi.trim();
 	            		// check if it is valid
 	            		if (doi.startsWith("doi.org/")) {
 	            			doi = doi.substring(8, doi.length());
@@ -410,35 +412,39 @@ public class CarbbankService {
 	            				logger.error("DOI " + doi + " is not valid for publication " + id);
 	            				continue;
 	            			}
-	            		} catch (IOException e) {
+	            		} catch (Exception e) {
 	            			logger.error(e.getMessage());
 	            			logger.error("DOI " + doi + " is not valid for publication " + id);
 	            			continue;
 	            		}
 	            	}
-	            	try {
-	            		Optional<Publication> pubHandle = publicationRepository.findById(Long.parseLong(id));
-	            		if (pubHandle.isPresent()) {
-	            			Publication pub = pubHandle.get();
-	            			if (pub.getPmid() == null)
-	            				pub.setPmid(pmid);
-	            			else if (!pub.getPmid().equals(pmid)) {
-	            				logger.error("There is a mismatch for pmid for publication " + id);
-	            			}
-	            			if (pub.getDoiId() == null)
-	            				pub.setDoiId(doi);
-	            			if (!pub.getDoiId().equals(doi)) {
-	            				logger.error("There is a mismatch for DOI for publication " + id);
-	            			}
-	            			publicationRepository.save(pub);
-	            		} else {
-	            			logger.error("could not locate publication with id " + id);
-	            		}
-	            	} catch (Exception e1) {
-	            		logger.error("could not locate publication with id " + id, e1);
+	            	if ((pmid != null && !pmid.isEmpty()) || (doi != null && !doi.isEmpty())) {
+		            	try {
+		            		Optional<Publication> pubHandle = publicationRepository.findById(Long.parseLong(id));
+		            		if (pubHandle.isPresent()) {
+		            			Publication pub = pubHandle.get();
+		            			if (pub.getPmid() == null && pmid != null && !pmid.isEmpty()) {
+		            				pub.setPmid(pmid);
+		            			} else if (pub.getPmid()!= null && pmid != null && !pmid.isEmpty() && !pub.getPmid().equals(pmid)) {
+		            				logger.error("There is a mismatch for pmid for publication " + id);
+		            			}
+		            			if (pub.getDoiId() == null && doi != null && !doi.isEmpty()) {
+		            				pub.setDoiId(doi);
+		            			} else if (pub.getDoiId()!= null && doi != null && !doi.isEmpty() && !pub.getDoiId().equals(doi)) {
+		            				logger.error("There is a mismatch for DOI for publication " + id);
+		            			}
+		            			publicationRepository.save(pub);
+		            			count++;
+		            		} else {
+		            			logger.error("could not locate publication with id " + id);
+		            		}
+		            	} catch (Exception e1) {
+		            		logger.error("could not locate publication with id " + id, e1);
+		            	}
 	            	}
 	            }
 			}
+			logger.info(count + " publications are updated");
 		} catch (EncryptedDocumentException | IOException e) {
 			logger.error("Error getting pmids from excel file " + filename, e);
 		} 

@@ -135,6 +135,9 @@ public class CarbbankService {
 	
 	static Logger logger = org.slf4j.LoggerFactory.getLogger(CarbbankService.class);
 	
+	static String[] unknownJournalNames = {"US Pat Appl", "Eur Pat Appl", "Ger Offen", "Fr Demande", 
+			"Jpn Kokai Tokkyo Koho", "Iyo Masu Kenkyukai Koenshu"};
+	
 	@Value("${ncbi.api-key}")
 	String apiKey;
 	
@@ -2280,6 +2283,9 @@ public class CarbbankService {
 		rows.add(header2);
 		for (Publication m: allPublications) {
 			if (m.getPmid() == null && m.getDoiId() == null) {
+				if (Arrays.asList(unknownJournalNames).contains(m.getJournalName())) {
+					continue;
+				}
 				if (m.getMatchDetails() != null && m.getMatchDetails().toLowerCase().contains("crossref")) {
 					String[] row = new String[8];
 					row[0] = m.getId() +"";
@@ -2304,6 +2310,9 @@ public class CarbbankService {
 		rows.add(header2);
 		for (Publication m: allPublications) {
 			if (m.getPmid() == null && m.getDoiId() == null) {
+				if (Arrays.asList(unknownJournalNames).contains(m.getJournalName())) {
+					continue;
+				}
 				if (m.getMatchDetails() == null || m.getMatchDetails().isEmpty()) {
 					String[] row = new String[8];
 					row[0] = m.getId() +"";

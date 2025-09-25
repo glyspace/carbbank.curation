@@ -122,6 +122,7 @@ import org.glygen.carbbank.model.mapping.MappingST;
 import org.glygen.carbbank.model.mapping.MappingTN;
 import org.glygen.carbbank.model.mapping.Publication;
 import org.glygen.carbbank.parser.CrossRefAPI;
+import org.glygen.carbbank.parser.ElsevierAPIUtil;
 import org.glygen.carbbank.parser.PubmedUtil;
 import org.glygen.carbbank.util.CellIndex;
 import org.slf4j.Logger;
@@ -140,6 +141,9 @@ public class CarbbankService {
 	
 	@Value("${ncbi.api-key}")
 	String apiKey;
+	
+	@Value("${elsevier.api-key}")
+	String apiKey2;
 	
 
 	String[] aminoAcids = {
@@ -1272,6 +1276,7 @@ public class CarbbankService {
 		// add pmids
 		PubmedUtil util = new PubmedUtil(apiKey);
 		CrossRefAPI util2 = new CrossRefAPI();
+		ElsevierAPIUtil util3 = new ElsevierAPIUtil(apiKey2);
 		// go through existing ones and assign pmid if not assigned
 		List<Publication> allPublications = publicationRepository.findAll();
 		for (Publication pub: allPublications) {
@@ -1279,7 +1284,8 @@ public class CarbbankService {
 				// check Pubmed to see if we can get the pmid
 				try {
 					if (pub.getChecked() == null || !pub.getChecked()) {
-						List<Publication> matches = util.getPublicationByTitle(pub.getTitle());
+						//List<Publication> matches = util.getPublicationByTitle(pub.getTitle());
+						List<Publication> matches = new ArrayList<>();
 						pub.setMatchCount(matches.size()+"");
 						if (!matches.isEmpty()) {
 							for (Publication m: matches) {
@@ -1317,26 +1323,23 @@ public class CarbbankService {
 							}
 							
 						} else {
-							// check crossRef to find matches
-							List<Publication> crossRefMatches = util2.getPublicationByTitle(pub.getTitle());
-							pub.setMatchCount(crossRefMatches.size()+"");
-							if (!crossRefMatches.isEmpty()) {
-								for (Publication m: crossRefMatches) {
-									if (m.equals(pub)) {
+							// check Elsevier API
+							List<Publication> scienceDirectMatches = util3.getPublicationByTitle(pub.getTitle());
+							pub.setMatchCount(scienceDirectMatches.size()+"");
+							if (!scienceDirectMatches.isEmpty()) {
+								for (Publication m: scienceDirectMatches) {
+									if (pub.equals(m)) {
 										pub.setPmid(m.getPmid());
 										pub.setDoiId(m.getDoiId());
-										pub.setAuthorMatchScore(m.getAuthorMatchScore());
-										pub.setTitleMatchScore(m.getTitleMatchScore());
-										pub.setJournalMatchScore(m.getJournalMatchScore());
 										break;
-									}
+									} 
 								}
 							}
 							if (pub.getDoiId() == null) {
-								if (crossRefMatches.size() == 1) {
-									Publication m = crossRefMatches.get(0);
+								if (scienceDirectMatches.size() == 1) {
+									Publication m = scienceDirectMatches.get(0);
 									if (m.getTitle() != null && m.getTitle().equalsIgnoreCase(pub.getTitle())) {
-										pub.setMatchDetails("Single CrossRef Match: " + m.getDoiId() + "; Title matched, ");
+										pub.setMatchDetails("Single ScienceDirect Match: " + m.getDoiId() + "; Title matched, ");
 										if (m.authorMatch(pub.getAuthor())) {
 											pub.setMatchDetails(pub.getMatchDetails() + "Authors matched, ");
 										} else {
@@ -1351,16 +1354,54 @@ public class CarbbankService {
 										pub.setMatchDetails(pub.getMatchDetails().trim());
 									}
 								} else {
-									pub.setMatchDetails("Multiple results from CrossRef. None matched");
+									pub.setMatchDetails("Multiple results from ScienceDirect. None matched");
 								}
 							}
-							
+							if (pub.getPmid() == null && pub.getDoiId() == null) {
+								// check crossRef to find matches
+								List<Publication> crossRefMatches = util2.getPublicationByTitle(pub.getTitle());
+								pub.setMatchCount(crossRefMatches.size()+"");
+								if (!crossRefMatches.isEmpty()) {
+									for (Publication m: crossRefMatches) {
+										if (m.equals(pub)) {
+											pub.setPmid(m.getPmid());
+											pub.setDoiId(m.getDoiId());
+											pub.setAuthorMatchScore(m.getAuthorMatchScore());
+											pub.setTitleMatchScore(m.getTitleMatchScore());
+											pub.setJournalMatchScore(m.getJournalMatchScore());
+											break;
+										}
+									}
+								}
+								if (pub.getDoiId() == null) {
+									if (crossRefMatches.size() == 1) {
+										Publication m = crossRefMatches.get(0);
+										if (m.getTitle() != null && m.getTitle().equalsIgnoreCase(pub.getTitle())) {
+											pub.setMatchDetails("Single CrossRef Match: " + m.getDoiId() + "; Title matched, ");
+											if (m.authorMatch(pub.getAuthor())) {
+												pub.setMatchDetails(pub.getMatchDetails() + "Authors matched, ");
+											} else {
+												pub.setMatchDetails(pub.getMatchDetails() + " Authors did not match: " + m.getAuthor() + ",");
+											}
+											if (m.journalMatch(pub)) {
+												pub.setMatchDetails(pub.getMatchDetails() + "Journal matched, ");
+											} else {
+												pub.setMatchDetails(pub.getMatchDetails() + " Journal did not match: " + 
+														m.getJournalName() + " (" + m.getYear() + ") " + m.getVolume() + ": " + m.getPageRange() + ", ");
+											}
+											pub.setMatchDetails(pub.getMatchDetails().trim());
+										}
+									} else {
+										pub.setMatchDetails("Multiple results from CrossRef. None matched");
+									}
+								}
+							}
 						}
 						pub.setChecked(true);
 						publicationRepository.save(pub);
 						
 						try {
-					        Thread.sleep(100); // wait 100 milliseconds between requests
+					        Thread.sleep(200); // wait 100 milliseconds between requests
 					    } catch (InterruptedException e) {
 					        Thread.currentThread().interrupt(); // restore interrupted status
 					    }
@@ -1951,6 +1992,35 @@ public class CarbbankService {
 			logger.error("Failed to write excel file for CN/GS conflicts", e);
 		}
 		
+	}
+	
+	public void generateMappedExcel () {
+		// Scientific Name Mappings
+		List<String[]> rows = new ArrayList<>();
+		List<MappingGS> allSpecies = mappingGSRepository.findAll();
+		String[] header = {"ID", "count", "name", "namespacename", "namespaceid", "mappingname", "rank", "matchCount"};
+		rows.add(header);
+		for (MappingGS m: allSpecies) {
+			if (m.getNamespaceName() != null) {
+				String[] row = new String[8];
+				row[0] = m.getId()+"";
+				row[1] = m.getCount()+ "";
+				row[2] = m.getName();
+				row[3] = m.getNamespaceName();
+				row[4] = m.getNamespaceId();
+				row[5] = m.getMappingName();
+				row[6] = m.getRank();
+				row[7] = m.getMatchCount() + "";
+				rows.add(row);
+			}
+		}
+		
+		try {
+			writeToExcel (rows, "Mappings", "mapping_BS_GS-mapped.xlsx", null, "Records", null);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 	
 	public void generateExcelFiles () {

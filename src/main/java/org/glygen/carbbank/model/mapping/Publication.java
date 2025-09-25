@@ -209,6 +209,7 @@ public class Publication {
 	public boolean authorMatch (String author2) {
 		if (this.author != null && author2 != null) {
 			double aScore = almostIdentical(this.author, author2);
+			this.authorMatchScore = aScore;
 			if (aScore > 0.9) return true;
 			// use only last names to match
 			String[] authorList = this.author.split(";");

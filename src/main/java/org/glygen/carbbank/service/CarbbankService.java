@@ -275,81 +275,142 @@ public class CarbbankService {
 	public void updateMappings (List<Mapping> mappings, String tablename) {
 		PubmedUtil util = new PubmedUtil(apiKey);
 		for (Mapping mapping: mappings) {
+			
+			if (mapping.getNamespaceId() != null && !mapping.getNamespaceId().isEmpty() && !mapping.getNamespaceId().trim().equalsIgnoreCase("n/a")) {	
 			if (tablename.equalsIgnoreCase("mapping_bs_cn")) {
-				try {
-					Species species = util.getSpeciesByID(mapping.getNamespaceId());
-					Optional<MappingCN> record = mappingCNRepository.findById(mapping.getId());
-					if (record.isPresent()) {
-						MappingCN existing = record.get();
-						if (!existing.getName().equalsIgnoreCase(species.getName())) {
-							existing.setMappingName(existing.getName());
+					try {
+						Species species = util.getSpeciesByID(mapping.getNamespaceId());
+						if (species == null) {
+							logger.error("Could not retrive species from NCBI Taxonomy for: " + mapping.getNamespaceId());
+						} else {
+							Optional<MappingCN> record = mappingCNRepository.findById(mapping.getId());
+							if (record.isPresent()) {
+								MappingCN existing = record.get();
+								if (mapping.getMappingName() != null && !mapping.getMappingName().isEmpty()) {
+									existing.setMappingName(mapping.getMappingName());
+								}
+								else if (!existing.getName().equalsIgnoreCase(species.getName())) {
+									existing.setMappingName(existing.getName());
+								}
+								if (existing.getNamespaceId() != null && !existing.getNamespaceId().isEmpty()) {
+									if (!existing.getNamespaceId().equalsIgnoreCase(mapping.getNamespaceId())) {
+										logger.error("Conflicting with the existing mapping " + mapping.getId() + 
+												" existing namespaceid is" + existing.getNamespaceId() + " new namespaceid is " + mapping.getNamespaceId());
+										//do not update
+										continue;
+									} 
+								}
+								existing.setInProgress(mapping.getInProgress());
+								existing.setNamespaceId(mapping.getNamespaceId());
+								existing.setNamespaceName(species.getName());
+								existing.setRank(species.getRank());
+								mappingCNRepository.save(existing);
+							}
 						}
-						existing.setInProgress(mapping.getInProgress());
-						existing.setNamespaceId(mapping.getNamespaceId());
-						existing.setNamespaceName(species.getName());
-						existing.setRank(species.getRank());
-						mappingCNRepository.save(existing);
+					} catch (IOException e) {
+						logger.error("Could not retrive species from NCBI Taxonomy for: " + mapping.getNamespaceId(), e);
 					}
-				} catch (IOException e) {
-					logger.error("Could not retrive species from NCBI Taxonomy for: " + mapping.getNamespaceId(), e);
-				}
-			} else if (tablename.equalsIgnoreCase("mapping_bs_gs")) {
-				try {
-					Species species = util.getSpeciesByID(mapping.getNamespaceId());
-					Optional<MappingGS> record = mappingGSRepository.findById(mapping.getId());
-					if (record.isPresent()) {
-						MappingGS existing = record.get();
-						if (!existing.getName().equalsIgnoreCase(species.getName())) {
-							existing.setMappingName(existing.getName());
+				} else if (tablename.equalsIgnoreCase("mapping_bs_gs")) {
+					try {
+						Species species = util.getSpeciesByID(mapping.getNamespaceId());
+						if (species == null) {
+							logger.error("Could not retrive species from NCBI Taxonomy for: " + mapping.getNamespaceId());
+						} else {
+							Optional<MappingGS> record = mappingGSRepository.findById(mapping.getId());
+							if (record.isPresent()) {
+								MappingGS existing = record.get();
+								if (mapping.getMappingName() != null && !mapping.getMappingName().isEmpty()) {
+									existing.setMappingName(mapping.getMappingName());
+								}
+								else if (!existing.getName().equalsIgnoreCase(species.getName())) {
+									existing.setMappingName(existing.getName());
+								}
+								if (existing.getNamespaceId() != null && !existing.getNamespaceId().isEmpty()) {
+									if (!existing.getNamespaceId().equalsIgnoreCase(mapping.getNamespaceId())) {
+										logger.error("Conflicting with the existing mapping " + mapping.getId() + 
+												" existing namespaceid is" + existing.getNamespaceId() + " new namespaceid is " + mapping.getNamespaceId());
+										//do not update
+										continue;
+									} 
+								}
+								existing.setInProgress(mapping.getInProgress());
+								existing.setMappingName(mapping.getMappingName());
+								existing.setNamespaceId(mapping.getNamespaceId());
+								existing.setNamespaceName(species.getName());
+								existing.setRank(species.getRank());
+								mappingGSRepository.save(existing);
+							}
 						}
-						existing.setInProgress(mapping.getInProgress());
-						existing.setMappingName(mapping.getMappingName());
-						existing.setNamespaceId(mapping.getNamespaceId());
-						existing.setNamespaceName(species.getName());
-						existing.setRank(species.getRank());
-						mappingGSRepository.save(existing);
+					} catch (IOException e) {
+						logger.error("Could not retrive species from NCBI Taxonomy for: " + mapping.getNamespaceId(), e);
 					}
-				} catch (IOException e) {
-					logger.error("Could not retrive species from NCBI Taxonomy for: " + mapping.getNamespaceId(), e);
+				} else if (tablename.equalsIgnoreCase("mapping_bs_disease")) {
+					String diseaseName = findCanonicalNameFromDictionary("doid-base.txt", mapping.getNamespaceId());
+					if (diseaseName == null) {
+						logger.error ("Could not locate the disease in the ontology " + mapping.getNamespaceId());
+					} else {
+						Optional<MappingDisease> record = mappingDiseaseRepository.findById(mapping.getId());
+						if (record.isPresent()) {
+							MappingDisease existing = record.get();
+							existing.setInProgress(mapping.getInProgress());
+							existing.setMappingName(mapping.getMappingName());
+							existing.setNamespaceId(mapping.getNamespaceId());
+							existing.setNamespaceName(mapping.getNamespaceName());
+							mappingDiseaseRepository.save(existing);
+						}
+					}
+				} else if (tablename.equalsIgnoreCase("mapping_bs_ot")) {
+					String tissueName = findCanonicalNameFromDictionary("uberon-base.txt", mapping.getNamespaceId());
+					if (tissueName == null) {
+						logger.error ("Could not locate the tissue in the ontology " + mapping.getNamespaceId());
+					} else {
+						Optional<MappingOT> record = mappingOTRepository.findById(mapping.getId());
+						if (record.isPresent()) {
+							MappingOT existing = record.get();
+							existing.setInProgress(mapping.getInProgress());
+							existing.setMappingName(mapping.getMappingName());
+							existing.setNamespaceId(mapping.getNamespaceId());
+							existing.setNamespaceName(mapping.getNamespaceName());
+							mappingOTRepository.save(existing);
+						}
+					}
+				} else if (tablename.equalsIgnoreCase("mapping_bs_cellline")) {
+					String cellline = findCanonicalNameFromDictionary("cellline.txt.gz", mapping.getNamespaceId());
+					if (cellline == null) {
+						logger.error ("Could not locate the cellline in the ontology " + mapping.getNamespaceId());
+					} else {
+						Optional<MappingCellLine> record = mappingCellineRepository.findById(mapping.getId());
+						if (record.isPresent()) {
+							MappingCellLine existing = record.get();
+							existing.setInProgress(mapping.getInProgress());
+							existing.setMappingName(mapping.getMappingName());
+							existing.setNamespaceId(mapping.getNamespaceId());
+							existing.setNamespaceName(mapping.getNamespaceName());
+							mappingCellineRepository.save(existing);
+						}
+					}
+				} else {
+					logger.error("Comparison of " + tablename + " has not been implemented yet!");
 				}
-			} else if (tablename.equalsIgnoreCase("mapping_bs_disease")) {
-				//TODO find the canonical form etc from the dictionary, not from the mapping
-				Optional<MappingDisease> record = mappingDiseaseRepository.findById(mapping.getId());
-				if (record.isPresent()) {
-					MappingDisease existing = record.get();
-					existing.setInProgress(mapping.getInProgress());
-					existing.setMappingName(mapping.getMappingName());
-					existing.setNamespaceId(mapping.getNamespaceId());
-					existing.setNamespaceName(mapping.getNamespaceName());
-					mappingDiseaseRepository.save(existing);
+			}
+		}	
+	}
+	
+	String findCanonicalNameFromDictionary (String namespaceFile, String namespaceId) {
+		PatriciaTrie<List<NamespaceEntry>> trie = NamespaceHandler.getTrieForNamespace(namespaceFile);
+		if (trie != null) {
+			for (List<NamespaceEntry> entries: trie.values()) {
+				for (NamespaceEntry entry: entries) {
+					if (entry.getUri() != null) {
+						String id = entry.getUri().substring(entry.getUri().lastIndexOf("/")+1);
+						if (id.equalsIgnoreCase(namespaceId)) {
+							return entry.getLabel();
+						}
+					}
 				}
-			} else if (tablename.equalsIgnoreCase("mapping_bs_ot")) {
-				//TODO find the canonical form etc from the dictionary, not from the mapping
-				Optional<MappingOT> record = mappingOTRepository.findById(mapping.getId());
-				if (record.isPresent()) {
-					MappingOT existing = record.get();
-					existing.setInProgress(mapping.getInProgress());
-					existing.setMappingName(mapping.getMappingName());
-					existing.setNamespaceId(mapping.getNamespaceId());
-					existing.setNamespaceName(mapping.getNamespaceName());
-					mappingOTRepository.save(existing);
-				}
-			} else if (tablename.equalsIgnoreCase("mapping_bs_cellline")) {
-				//TODO find the canonical form etc from the dictionary, not from the mapping
-				Optional<MappingCellLine> record = mappingCellineRepository.findById(mapping.getId());
-				if (record.isPresent()) {
-					MappingCellLine existing = record.get();
-					existing.setInProgress(mapping.getInProgress());
-					existing.setMappingName(mapping.getMappingName());
-					existing.setNamespaceId(mapping.getNamespaceId());
-					existing.setNamespaceName(mapping.getNamespaceName());
-					mappingCellineRepository.save(existing);
-				}
-			} else {
-				logger.error("Comparison of " + tablename + " has not been implemented yet!");
 			}
 		}
-		
+		return null;
 	}
 	
 	public boolean checkDOI (String doi) throws IOException {

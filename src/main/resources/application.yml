@@ -1,13 +1,26 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5436/postgres
-    username: glygen
-    password: ENC(Y28YsnugTP2zFhN68Z12aHtODjqpm42tNcQ7WfJo/BI=)
-    driver-class-name: org.postgresql.Driver
-    separator: ^^^ END OF SCRIPT ^^^
+    primary:
+      url: jdbc:postgresql://localhost:5436/postgres
+      username: glygen
+      password: ENC(Y28YsnugTP2zFhN68Z12aHtODjqpm42tNcQ7WfJo/BI=)
+      driver-class-name: org.postgresql.Driver
+      separator: ^^^ END OF SCRIPT ^^^
+    secondary:
+      url: jdbc:postgresql://localhost:5436/glycomedb
+      username: glygen
+      password: ENC(Y28YsnugTP2zFhN68Z12aHtODjqpm42tNcQ7WfJo/BI=)
+      driver-class-name: org.postgresql.Driver
+      separator: ^^^ END OF SCRIPT ^^^
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
+
 ncbi:
   api-key: ENC(/IuwNTHNR7ZDXFolnV/bnTfhj9l0Awr2UN1wBeWdKPzaARshqNOUTA3F7giwo6tq)
 elsevier:
   api-key: ENC(opugcA1Xj2wFlu8T1uHurFH+PcWY4XvqcSiTzjeCQ/ClSvO5FfEYm9oYgWptly1U)
+  
+tablemaker:
+  api-url: http://localhost:8080/
+  user-id: carbbank
+  password: ENC(YCgM7b2xrdH5bkGMtN3EhXpmy3Np9SQPu1EkRZecfe8=)

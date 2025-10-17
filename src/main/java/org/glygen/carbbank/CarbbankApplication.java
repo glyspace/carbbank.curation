@@ -8,6 +8,7 @@ import org.glygen.carbbank.model.mapping.Mapping;
 import org.glygen.carbbank.parser.CarbbankUtil;
 import org.glygen.carbbank.parser.ComparisonUtil;
 import org.glygen.carbbank.service.CarbbankService;
+import org.glygen.carbbank.service.CarbbankToTablemakerService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -23,6 +24,10 @@ public class CarbbankApplication {
 	@Autowired
 	CarbbankService service;
 	
+	@Autowired
+	CarbbankToTablemakerService tablemaker;
+	
+	
 	public static void main(String[] args) {
 		new SpringApplicationBuilder()
 	    .environment(new StandardEncryptableEnvironment())
@@ -37,12 +42,15 @@ public class CarbbankApplication {
 			List<String> tablenames = args.getOptionValues("compare");
 			List<String> filenames = args.getOptionValues("file");
 			List<Mapping> mappings = new ComparisonUtil().compareFiles(filenames, tablenames.get(0));
-			//service.updateMappings(mappings, tablenames.get(0));
+			service.updateMappings(mappings, tablenames.get(0));
 		} else if (args.containsOption("publication")) {
 			List<String> filenames = args.getOptionValues("file");
 			for (String filename: filenames) {
 				service.addPublicationsFromFile(filename);
 			}
+		} else if (args.containsOption("tablemaker")) {
+			tablemaker.createGlycans();
+			//tablemaker.createCollectionsAndPublishDataset();
 		} else if (args.containsOption("file")) {
 	    	List<String> carbbankFile = args.getOptionValues("file");
 	    	if (!carbbankFile.isEmpty()) {

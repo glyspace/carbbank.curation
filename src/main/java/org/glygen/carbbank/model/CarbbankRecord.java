@@ -20,6 +20,8 @@ public class CarbbankRecord {
 	
 	String structure;
 	
+	String glytoucanId;
+	
 	String AU;
 	String CC;
 	String CT;
@@ -259,5 +261,14 @@ public class CarbbankRecord {
 
 	public void setBaList(Collection<BA> baList) {
 		this.baList = baList;
+	}
+
+	@Column(length=15)
+	public String getGlytoucanId() {
+		return glytoucanId;
+	}
+
+	public void setGlytoucanId(String glytoucanId) {
+		this.glytoucanId = glytoucanId;
 	}
 }

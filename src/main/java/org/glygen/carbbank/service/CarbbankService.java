@@ -1298,7 +1298,7 @@ public class CarbbankService {
 		}*/
 	}
 	
-	private void extractJournal(Publication pub, String ct) {
+	public static void extractJournal(Publication pub, String ct) {
 		Pattern pattern = Pattern.compile(
 			    "^(.*?)\\s*\\((\\d{4})\\)\\s*(?:(\\w+)\\s*:)??\\s*:?\\s*([a-zA-Z]*\\d+[a-zA-Z]*|[ivxlcdm]+(?:-[ivxlcdm]+)?|\\?|[a-zA-Z]*\\d+(?:-[a-zA-Z]*\\d+)?)?$",
 			    Pattern.CASE_INSENSITIVE

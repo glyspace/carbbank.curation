@@ -49,8 +49,8 @@ public class CarbbankApplication {
 				service.addPublicationsFromFile(filename);
 			}
 		} else if (args.containsOption("tablemaker")) {
-			tablemaker.createGlycans();
-			//tablemaker.createCollectionsAndPublishDataset();
+			//tablemaker.createGlycans();
+			tablemaker.createCollectionsAndPublishDataset();
 		} else if (args.containsOption("file")) {
 	    	List<String> carbbankFile = args.getOptionValues("file");
 	    	if (!carbbankFile.isEmpty()) {

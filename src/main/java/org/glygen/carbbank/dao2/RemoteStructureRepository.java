@@ -8,10 +8,10 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface RemoteStructureRepository extends JpaRepository<RemoteStructure, Integer> {
-	Optional<RemoteStructure> findByResourceId(String resourceId);
+	Optional<RemoteStructure> findByResourceIdAndResource(String resourceId, String resource);
 	
 
-	@Query("SELECT r FROM RemoteStructure r JOIN FETCH r.structures WHERE r.resourceId = :id")
+	@Query("SELECT r FROM RemoteStructure r JOIN FETCH r.structures WHERE r.resourceId = :id and r.resource='carbbank'")
 	Optional<RemoteStructure> findByResourceIdWithStructures(@Param("id") String id);
 
 }

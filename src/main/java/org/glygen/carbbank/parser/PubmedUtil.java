@@ -303,6 +303,10 @@ public class PubmedUtil {
     }
     
     public boolean checkIfSameHierarchy  (String id1, String id2) throws IOException {
+    	
+    	if (id1 != null && id1.equalsIgnoreCase(id2))
+    		return true;
+
     	String apiUrl = ncbiFetchUrl + id1;
 		if (apiKey != null) {
 			apiUrl += "&api_key=" + apiKey;
@@ -428,7 +432,7 @@ public class PubmedUtil {
     }
     
     public Publication getPublicationByDOI (String doi) throws IOException, Exception {
-		String pubUrl = doiUrl + doi;
+		String pubUrl = doiUrl + URLEncoder.encode(doi, StandardCharsets.UTF_8);
 
 		try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
 	        HttpGet request = new HttpGet(pubUrl);
@@ -473,7 +477,7 @@ public class PubmedUtil {
 			String authorsString = "";
 			for (int i=0; i < authors.length(); i++) {
 				JSONObject author = authors.getJSONObject(i);
-				authorsString += author.getString("family") + author.getString("given").charAt(0) + ", ";
+				authorsString += author.getString("family") + " " + author.getString("given").charAt(0) + ", ";
 			}
 			pub.setAuthor(authorsString.substring(0, authorsString.lastIndexOf(",")));
 		}
@@ -563,6 +567,14 @@ public class PubmedUtil {
     
     public static void main(String[] args) {
     	try {
+    		
+    		String doi = "10.1002/1097-0142(19950315)75:6<1273::AID-CNCR2820750609>3.0.CO;2-O";
+    		try {
+    			new PubmedUtil(null).getPublicationByDOI(URLEncoder.encode(doi));
+    		} catch (Exception e) {
+    			System.err.println (e);
+    		}
+    		
 			List<Publication> results = new PubmedUtil(null).getPublicationByTitle("Synthesis of p-trifluoroacetamidophenyl 6-deoxy-2-O-{3-O-[2-O-methyl-3-O-(2-O-methyl-.alpha.-D-rhamnopyranosyl)-.alpha.-L-fucopyranosyl]-.alpha.-L-rhamnopyranosyl}-.alpha.-L-talopyranoside: a spacer armed tetrasaccharide glycopeptidolipid antigen of Mycobacterium avium serovar 20");
 			for (Publication result: results) {
 				System.out.println (result.getTitle() + "\n" + PubmedUtil.ignoreUmlaut(result.getAuthor()) + "\n" + result.getJournalName());
@@ -574,7 +586,7 @@ public class PubmedUtil {
 		        Thread.currentThread().interrupt(); // restore interrupted status
 		    }
 			
-		/*	Boolean result = new PubmedUtil(null).checkIfSameHierarchy("499", "500");
+			Boolean result = new PubmedUtil(null).checkIfSameHierarchy("499", "500");
 			System.out.println ("They are in the same hierarchy? " + result);
 			
 			try {
@@ -585,7 +597,7 @@ public class PubmedUtil {
 			
 			Species species = new PubmedUtil(null).findCommonAncestor("4498", "50455");
 			if (species != null)
-				System.out.println ("Common parent: " + species.getName() + " id: "+ species.getId() + " rank: " + species.getRank());*/
+				System.out.println ("Common parent: " + species.getName() + " id: "+ species.getId() + " rank: " + species.getRank());
 		} catch (IOException e) { 
 			// TODO Auto-generated catch block
 			e.printStackTrace();

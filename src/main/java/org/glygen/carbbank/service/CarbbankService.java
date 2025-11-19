@@ -277,9 +277,14 @@ public class CarbbankService {
 		for (Mapping mapping: mappings) {
 			
 			if (mapping.getNamespaceId() != null && !mapping.getNamespaceId().isEmpty() && !mapping.getNamespaceId().trim().equalsIgnoreCase("n/a")) {	
-			if (tablename.equalsIgnoreCase("mapping_bs_cn")) {
+				if (tablename.equalsIgnoreCase("mapping_bs_cn")) {
 					try {
 						Species species = util.getSpeciesByID(mapping.getNamespaceId());
+						try {
+					        Thread.sleep(400); // wait 400 milliseconds between requests
+					    } catch (InterruptedException e) {
+					        Thread.currentThread().interrupt(); // restore interrupted status
+					    }
 						if (species == null) {
 							logger.error("Could not retrive species from NCBI Taxonomy for: " + mapping.getNamespaceId());
 						} else {
@@ -313,6 +318,11 @@ public class CarbbankService {
 				} else if (tablename.equalsIgnoreCase("mapping_bs_gs")) {
 					try {
 						Species species = util.getSpeciesByID(mapping.getNamespaceId());
+						try {
+					        Thread.sleep(400); // wait 400 milliseconds between requests
+					    } catch (InterruptedException e) {
+					        Thread.currentThread().interrupt(); // restore interrupted status
+					    }
 						if (species == null) {
 							logger.error("Could not retrive species from NCBI Taxonomy for: " + mapping.getNamespaceId());
 						} else {
@@ -334,7 +344,6 @@ public class CarbbankService {
 									} 
 								}
 								existing.setInProgress(mapping.getInProgress());
-								existing.setMappingName(mapping.getMappingName());
 								existing.setNamespaceId(mapping.getNamespaceId());
 								existing.setNamespaceName(species.getName());
 								existing.setRank(species.getRank());
@@ -353,7 +362,12 @@ public class CarbbankService {
 						if (record.isPresent()) {
 							MappingDisease existing = record.get();
 							existing.setInProgress(mapping.getInProgress());
-							existing.setMappingName(mapping.getMappingName());
+							if (mapping.getMappingName() != null && !mapping.getMappingName().isEmpty()) {
+								existing.setMappingName(mapping.getMappingName());
+							}
+							else if (!existing.getName().equalsIgnoreCase(diseaseName)) {
+								existing.setMappingName(existing.getName());
+							}
 							existing.setNamespaceId(mapping.getNamespaceId());
 							existing.setNamespaceName(mapping.getNamespaceName());
 							mappingDiseaseRepository.save(existing);
@@ -368,7 +382,12 @@ public class CarbbankService {
 						if (record.isPresent()) {
 							MappingOT existing = record.get();
 							existing.setInProgress(mapping.getInProgress());
-							existing.setMappingName(mapping.getMappingName());
+							if (mapping.getMappingName() != null && !mapping.getMappingName().isEmpty()) {
+								existing.setMappingName(mapping.getMappingName());
+							}
+							else if (!existing.getName().equalsIgnoreCase(tissueName)) {
+								existing.setMappingName(existing.getName());
+							}
 							existing.setNamespaceId(mapping.getNamespaceId());
 							existing.setNamespaceName(mapping.getNamespaceName());
 							mappingOTRepository.save(existing);
@@ -383,7 +402,12 @@ public class CarbbankService {
 						if (record.isPresent()) {
 							MappingCellLine existing = record.get();
 							existing.setInProgress(mapping.getInProgress());
-							existing.setMappingName(mapping.getMappingName());
+							if (mapping.getMappingName() != null && !mapping.getMappingName().isEmpty()) {
+								existing.setMappingName(mapping.getMappingName());
+							}
+							else if (!existing.getName().equalsIgnoreCase(cellline)) {
+								existing.setMappingName(existing.getName());
+							}
 							existing.setNamespaceId(mapping.getNamespaceId());
 							existing.setNamespaceName(mapping.getNamespaceName());
 							mappingCellineRepository.save(existing);
@@ -432,6 +456,7 @@ public class CarbbankService {
 	
 	@Transactional
 	public void addPublicationsFromFile (String filename) {
+		PubmedUtil util = new PubmedUtil(apiKey);
 		File file1 = new File (filename);
 		try {
 			Workbook workbook = WorkbookFactory.create(file1);
@@ -453,17 +478,23 @@ public class CarbbankService {
 	            	if (idCell.getCellType() == CellType.NUMERIC) {
 	            		id = (int)idCell.getNumericCellValue() + "";
 	            	} else {
-	            		id = idCell.getStringCellValue();
+	            		id = idCell.getStringCellValue().trim();
 	            	}
 	            	String pmid = null;
 	            	Cell pmidCell = row.getCell(5);
 	            	if (pmidCell != null) {
 	            		if (pmidCell.getCellType() == CellType.NUMERIC) {
 		            		pmid = (int)pmidCell.getNumericCellValue() + "";
+		            		pmid = pmid.trim();
 		            	} else {
 		            		pmid = pmidCell.getStringCellValue();
+		            		pmid = pmid.trim();
+		            		if (pmid.contains("-") || pmid.contains("—") || pmid.length() < 4) {
+		            			logger.warn("pmid " + pmid + " is not accepted");
+		            			pmid = null;
+		            		}
 		            	}
-	            		pmid = pmid.trim();
+	            		
 	            	}
 	            	String doi = row.getCell(6).getStringCellValue();
 	            	if (doi != null && !doi.isEmpty()) {
@@ -473,24 +504,43 @@ public class CarbbankService {
 	            			doi = doi.substring(8, doi.length());
 	            		} else if (doi.startsWith("https://doi.org/")) {
 	            			doi = doi.substring(16, doi.length());
+	            		} else if (doi.length() < 4){
+	            			logger.warn("doi " + doi + " is not accepted");
+	            			doi = null;
 	            		}
-	            		try {
-	            			boolean valid = checkDOI(doi);
-	            			if (!valid) {
-	            				logger.error("DOI " + doi + " is not valid for publication " + id);
-	            				continue;
-	            			}
-	            		} catch (Exception e) {
-	            			logger.error(e.getMessage());
-	            			logger.error("DOI " + doi + " is not valid for publication " + id);
-	            			continue;
+	            		if (doi != null) {
+		            		try {
+		            			boolean valid = checkDOI(doi);
+		            			if (!valid) {
+		            				logger.error("DOI " + doi + " is not valid for publication " + id);
+		            				continue;
+		            			}
+		            		} catch (Exception e) {
+		            			logger.error(e.getMessage());
+		            			logger.error("DOI " + doi + " is not valid for publication " + id);
+		            			continue;
+		            		}
 	            		}
 	            	}
-	            	if ((pmid != null && !pmid.isEmpty()) || (doi != null && !doi.isEmpty())) {
+	            	if ((pmid != null && !pmid.isEmpty() && !pmid.contains("-") && !pmid.contains("—") && pmid.length() > 3) || (doi != null && !doi.isEmpty() && !doi.trim().equals("-") && !doi.trim().equals("—") && doi.length() > 5)) {
 		            	try {
 		            		Optional<Publication> pubHandle = publicationRepository.findById(Long.parseLong(id));
 		            		if (pubHandle.isPresent()) {
 		            			Publication pub = pubHandle.get();
+		            			// check the match score 
+	            				Publication p = null;
+	            				if (pmid != null && !pmid.isEmpty() && !pmid.contains("-") && !pmid.contains("—") && pmid.length() > 3)
+	            					p = util.getPublicatonByPMID(pmid);
+	            				else p = util.getPublicationByDOI(doi);
+	            				try {
+	    					        Thread.sleep(100); // wait 100 milliseconds between requests
+	    					    } catch (InterruptedException e) {
+	    					        Thread.currentThread().interrupt(); // restore interrupted status
+	    					    }
+	            				pub.equals(p);   // to calculate the scores
+	            				if (pub.getTitleMatchScore() < 0.95 && (pub.getAuthorMatchScore() == null || pub.getAuthorMatchScore() < 0.9) && (pub.getJournalMatchScore() == null || pub.getJournalMatchScore() < 0.9)) {
+	            					logger.error("scores are low for publication " + id);
+	            				}
 		            			if (pub.getPmid() == null && pmid != null && !pmid.isEmpty()) {
 		            				pub.setPmid(pmid);
 		            			} else if (pub.getPmid()!= null && pmid != null && !pmid.isEmpty() && !pub.getPmid().equals(pmid)) {
@@ -498,7 +548,7 @@ public class CarbbankService {
 		            			}
 		            			if (pub.getDoiId() == null && doi != null && !doi.isEmpty()) {
 		            				pub.setDoiId(doi);
-		            			} else if (pub.getDoiId()!= null && doi != null && !doi.isEmpty() && !pub.getDoiId().equals(doi)) {
+		            			} else if (pub.getDoiId()!= null && doi != null && !doi.isEmpty() && !pub.getDoiId().equalsIgnoreCase(doi)) {
 		            				logger.error("There is a mismatch for DOI for publication " + id);
 		            			}
 		            			publicationRepository.save(pub);

@@ -7,7 +7,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 @Entity
-@Table(name="mapping_BS_CN")
+@Table(name="mapping_BS_CN", schema="carbbank")
 public class MappingCN extends Mapping {
 	
 	@Column

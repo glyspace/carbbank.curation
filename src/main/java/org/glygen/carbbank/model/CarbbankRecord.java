@@ -5,6 +5,7 @@ import java.util.Collection;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -20,7 +21,7 @@ public class CarbbankRecord {
 	
 	String structure;
 	
-	String glytoucanId;
+	Collection<CarbbankGlycan>  glycans;
 	
 	String AU;
 	String CC;
@@ -46,6 +47,8 @@ public class CarbbankRecord {
 	Collection<ST> stList;
 	Collection<TN> tnList;
 	Collection<VR> vrList;
+	
+	Boolean processed = false;
 	
 	@Id
 	@GeneratedValue(strategy=GenerationType.SEQUENCE, generator="carbbank_seq")
@@ -155,7 +158,7 @@ public class CarbbankRecord {
 		this.anList = anList;
 	}
 
-	@OneToMany(mappedBy = "record", cascade = CascadeType.ALL)
+	@OneToMany(mappedBy = "record", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
 	public Collection<BS> getBsList() {
 		return bsList;
 	}
@@ -263,12 +266,22 @@ public class CarbbankRecord {
 		this.baList = baList;
 	}
 
-	@Column(length=15)
-	public String getGlytoucanId() {
-		return glytoucanId;
+
+	@OneToMany(mappedBy = "record", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+	public Collection<CarbbankGlycan> getGlycans() {
+		return glycans;
 	}
 
-	public void setGlytoucanId(String glytoucanId) {
-		this.glytoucanId = glytoucanId;
+	public void setGlycans(Collection<CarbbankGlycan> glycans) {
+		this.glycans = glycans;
+	}
+
+	@Column
+	public Boolean getProcessed() {
+		return processed;
+	}
+
+	public void setProcessed(Boolean processed) {
+		this.processed = processed;
 	}
 }

@@ -11,7 +11,8 @@ public class PublicationView {
     String volume = null;
     Integer year = null;
     String number = null;
-	public String getPubmedId() {
+	
+    public String getPubmedId() {
 		return pubmedId;
 	}
 	public void setPubmedId(String pubmedId) {
@@ -70,6 +71,28 @@ public class PublicationView {
 	}
 	public void setNumber(String number) {
 		this.number = number;
+	}
+	
+	@Override
+	public boolean equals(Object obj) {
+		if (obj instanceof PublicationView) {
+			if (pubmedId != null) {
+				return pubmedId.equalsIgnoreCase(((PublicationView) obj).getPubmedId());
+			} else if (doiId != null) {
+				return doiId.equalsIgnoreCase(((PublicationView) obj).getDoiId());
+			}
+		}
+		return super.equals(obj);
+	}
+	
+	@Override
+	public int hashCode() {
+		if (pubmedId != null) {
+			return pubmedId.hashCode();
+		} else if (doiId != null) {
+			return doiId.hashCode();
+		}
+		return super.hashCode();
 	}
 
 }

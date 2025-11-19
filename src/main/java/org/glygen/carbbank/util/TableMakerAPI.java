@@ -184,13 +184,14 @@ public class TableMakerAPI {
 		this.password = password;
 	}
 
-	public String addGlycanGlycoCT(String glycoCT) {
+	public String addGlycanGlycoCT(String glycoCT, String glytoucanId) {
 		if (this.token == null) login();
 		
 		String url = apiURL + "api/data/addglycan";
 		GlycanView glycan = new GlycanView();
 		glycan.setFormat(SequenceFormat.GLYCOCT);
 		glycan.setSequence(glycoCT);
+		glycan.setGlytoucanID(glytoucanId);
 		
 		//set the header with token
 		HttpHeaders headers = new HttpHeaders();
@@ -213,21 +214,22 @@ public class TableMakerAPI {
 					if (message.contains("already")) {
 						// duplicate
 						// find the existing glycan
-						return getGlycan (glycoCT);
+						return getGlycan (glycoCT, glytoucanId);
 					}
 				}
 			}
-			return null;
+			throw e;
 		}
 	}
 
-	private String getGlycan(String glycoCT) {
+	private String getGlycan(String glycoCT, String glytoucanId) {
 		if (this.token == null) login();
 		
 		String url = apiURL + "api/data/getglycan";
 		GlycanView glycan = new GlycanView();
 		glycan.setFormat(SequenceFormat.GLYCOCT);
 		glycan.setSequence(glycoCT);
+		glycan.setGlytoucanID(glytoucanId);
 		
 		//set the header with token
 		HttpHeaders headers = new HttpHeaders();
@@ -242,7 +244,7 @@ public class TableMakerAPI {
 			
 			return data.getString("glytoucanID");
 		} catch (HttpClientErrorException e) {
-			return null;
+			throw e;
 		}
 	}
 	

@@ -50,7 +50,8 @@ public class CarbbankApplication {
 			}
 		} else if (args.containsOption("tablemaker")) {
 			//tablemaker.createGlycans();
-			tablemaker.createCollectionsAndPublishDataset();
+			//tablemaker.createCollections();
+			tablemaker.createDataset();
 		} else if (args.containsOption("file")) {
 	    	List<String> carbbankFile = args.getOptionValues("file");
 	    	if (!carbbankFile.isEmpty()) {

@@ -128,7 +128,14 @@ public class Publication {
 						}
 					}
 				}
-			} 
+			} else {
+				// check author and journal match only
+				if (author != null) {
+					if (authorMatch(((Publication) obj).getAuthor())) {
+						return journalMatch (((Publication) obj));
+					} 
+				}
+			}
 		}
 		return super.equals(obj);
 	}

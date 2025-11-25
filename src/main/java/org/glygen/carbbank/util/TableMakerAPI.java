@@ -2,12 +2,18 @@ package org.glygen.carbbank.util;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
+import org.glygen.carbbank.model.mapping.Publication;
+import org.glygen.carbbank.model.tablemaker.CollectionType;
 import org.glygen.carbbank.model.tablemaker.CollectionView;
 import org.glygen.carbbank.model.tablemaker.DatasetInputView;
+import org.glygen.carbbank.model.tablemaker.Datatype;
 import org.glygen.carbbank.model.tablemaker.GlycanView;
 import org.glygen.carbbank.model.tablemaker.LoginRequest;
+import org.glygen.carbbank.model.tablemaker.Metadata;
 import org.glygen.carbbank.model.tablemaker.SequenceFormat;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -18,6 +24,10 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class TableMakerAPI {
 	
@@ -78,6 +88,64 @@ public class TableMakerAPI {
 		JSONObject data = obj.getJSONObject("data");
 		
 		return data.getString("glytoucanID");
+	}
+	
+	public List<CollectionView> getCollections (String version, int start, int size) throws Exception {
+		if (this.token == null) login();
+		
+		String url = apiURL + "api/data/getcollections";
+		JSONArray filterArray = new JSONArray();
+		JSONObject filter = new JSONObject();
+		filter.put("id","name");
+		filter.put("value", version);
+		filterArray.put(filter);
+
+		url +="?start=" + start + "&size=" + size + "&filters=" + URLEncoder.encode(filterArray.toString(), StandardCharsets.UTF_8);
+		//set the header with token
+		HttpHeaders headers = new HttpHeaders();
+	    headers.setAccept(Arrays.asList(MediaType.APPLICATION_JSON));
+	    headers.add("Authorization", "Bearer " + token);
+		
+		HttpEntity<Void> requestEntity = new HttpEntity<Void>(null, headers);
+		ResponseEntity<String> response = this.restTemplate.exchange(url, HttpMethod.GET, requestEntity, String.class);
+		JSONObject obj = new JSONObject(response.getBody());
+		JSONObject data = obj.getJSONObject("data");
+		JSONArray results = data.getJSONArray("objects");
+		
+		List<CollectionView> collectionViews = new ArrayList<>();
+
+	    for (int i = 0; i < results.length(); i++) {
+	        JSONObject jsonObject = results.getJSONObject(i);
+			CollectionView view = createFromJson(jsonObject);
+			collectionViews.add(view);
+	    }
+		
+		return collectionViews;
+	}
+	
+	private CollectionView createFromJson(JSONObject obj) {
+		CollectionView view = new CollectionView();
+		if (obj.has("collectionId")) {
+			view.setCollectionId(obj.getLong("collectionId"));
+		}
+		view.setType(CollectionType.GLYCAN);
+		if (obj.has("name")) view.setName(obj.getString("name"));
+		
+		if (obj.has("metadata")) {
+			view.setMetadata(new ArrayList<>());
+			JSONArray metadata = obj.getJSONArray("metadata");
+			for (int i=0; i < metadata.length(); i++) {
+				JSONObject meta = metadata.getJSONObject(i);
+				Metadata m = new Metadata();
+				m.setMetadataId(meta.getLong("metadataId"));
+				if (meta.has("value")) m.setValue(meta.getString("value"));
+				if (meta.has("valueId")) m.setValueId(meta.getString("valueId"));
+				m.setType(new Datatype());
+				m.getType().setDatatypeId(((JSONObject)meta.get("type")).getLong("datatypeId"));
+				view.getMetadata().add(m);
+			}	
+		}
+		return view;
 	}
 	
 	public Long retrieveGlycanByGlytoucanId (String glytoucanId) {

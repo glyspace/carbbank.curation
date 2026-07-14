@@ -483,11 +483,17 @@ public class PubmedUtil {
 		}
 		return pub;
 	}
+	
+	public List<Species> getSpecies (String name) throws IOException {
+		return getSpecies(name, false);
+	}
     
-    public List<Species> getSpecies (String name) throws IOException {
+    public List<Species> getSpecies (String name, boolean exact) throws IOException {
 		List<Species> results = new ArrayList<>();
 		
 		name = name.replaceAll("\n", " ");
+		
+		if (exact) name += "[]";
 		
 		String encodedName = URLEncoder.encode(name, StandardCharsets.UTF_8);
 
@@ -579,6 +585,35 @@ public class PubmedUtil {
 			for (Publication result: results) {
 				System.out.println (result.getTitle() + "\n" + PubmedUtil.ignoreUmlaut(result.getAuthor()) + "\n" + result.getJournalName());
 			}
+			
+			try {
+		        Thread.sleep(500); // wait 100 milliseconds between requests
+		    } catch (InterruptedException e) {
+		        Thread.currentThread().interrupt(); // restore interrupted status
+		    }
+			
+			try {
+    			List<Species> results1 = new PubmedUtil(null).getSpecies("veronica persica");
+    			System.out.println ("search results " + results1.size());
+    			for (Species s: results1) {
+    				System.out.println (s.getId());
+    			}
+    			
+    			try {
+    		        Thread.sleep(500); // wait 100 milliseconds between requests
+    		    } catch (InterruptedException e) {
+    		        Thread.currentThread().interrupt(); // restore interrupted status
+    		    }
+    			
+    			List<Species> results2 = new PubmedUtil(null).getSpecies("veronica persica", true);
+    			System.out.println ("exact search results " + results2.size());
+    			for (Species s: results2) {
+    				System.out.println (s.getId());
+    			}
+    			
+    		} catch (Exception e) {
+    			System.err.println (e);
+    		}
 			
 			try {
 		        Thread.sleep(500); // wait 100 milliseconds between requests

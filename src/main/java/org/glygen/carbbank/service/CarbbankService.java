@@ -1525,6 +1525,344 @@ public class CarbbankService {
 		}
 	}
 	
+	public void regenerateBSSpeciesInformation() {
+		PubmedUtil util = new PubmedUtil(apiKey);
+		
+		List<MappingBS_BS> allBS = mappingBSRepository.findAll();
+		for (MappingBS_BS bs: allBS) {
+			try {
+				List<Species> matches = util.getSpecies(bs.getName(), true);
+				if (!matches.isEmpty()) {
+					if (matches.size() > 1) {
+						logger.info("multiple matches for " + bs.getName());
+					} else {
+						Species s = matches.get(0);
+						bs.setNamespaceName2(s.getName());
+						bs.setNamespaceId2(s.getId());
+						mappingBSRepository.save(bs);
+					}
+				}
+			
+				try {
+			        Thread.sleep(100); // wait 100 milliseconds between requests
+			    } catch (InterruptedException e) {
+			        Thread.currentThread().interrupt(); // restore interrupted status
+			    }
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		
+		List<MappingBS_C> allC = mappingCRepository.findAll();
+		for (MappingBS_C bs: allC) {
+			try {
+				List<Species> matches = util.getSpecies(bs.getName(), true);
+				if (!matches.isEmpty()) {
+					if (matches.size() > 1) {
+						// check the number of matches with "class" rank
+						List<Species> rankMatches = new ArrayList<>();
+						for (Species m: matches) {
+							if (m.getRank() != null && m.getRank().equalsIgnoreCase("class`")) {
+								rankMatches.add(m);
+							}
+						}
+						if (rankMatches.size() == 1) {
+							Species s = rankMatches.get(0);
+							bs.setNamespaceName2(s.getName());
+							bs.setNamespaceId2(s.getId());
+						}
+					} else {
+						Species s = matches.get(0);
+						bs.setNamespaceName2(s.getName());
+						bs.setNamespaceId2(s.getId());
+						
+					}
+				}
+				mappingCRepository.save(bs);
+				
+				
+				try {
+			        Thread.sleep(100); // wait 100 milliseconds between requests
+			    } catch (InterruptedException e) {
+			        Thread.currentThread().interrupt(); // restore interrupted status
+			    }
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+				
+				try {
+			        Thread.sleep(100); // wait 100 milliseconds between requests
+			    } catch (InterruptedException e1) {
+			        Thread.currentThread().interrupt(); // restore interrupted status
+			    }
+			}
+		}
+		
+		List<MappingCN> allCN = mappingCNRepository.findAll();
+		for (MappingCN bs: allCN) {
+			try {
+				
+				List<Species> matches = util.getSpecies(bs.getName(), true);
+				
+				if (!matches.isEmpty()) {
+					if (matches.size() > 1) {
+						logger.info("multiple matches for " + bs.getName());
+					} else {
+						Species s = matches.get(0);
+						bs.setNamespaceName2(s.getName());
+						bs.setNamespaceId2(s.getId());
+						
+					}
+				}
+				mappingCNRepository.save(bs);
+				
+				
+				try {
+			        Thread.sleep(100); // wait 100 milliseconds between requests
+			    } catch (InterruptedException e) {
+			        Thread.currentThread().interrupt(); // restore interrupted status
+			    }
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		
+		List<MappingDomain> all = mappingDomainRepository.findAll();
+		for (MappingDomain bs: all) {
+			try {
+				List<Species> matches = util.getSpecies(bs.getName(), true);
+				if (!matches.isEmpty()) {
+					if (matches.size() > 1) {
+						// check the number of matches with "domain" rank
+						List<Species> rankMatches = new ArrayList<>();
+						for (Species m: matches) {
+							if (m.getRank() != null && m.getRank().equalsIgnoreCase("domain")) {
+								rankMatches.add(m);
+							}
+						}
+						if (rankMatches.size() == 1) {
+							Species s = rankMatches.get(0);
+							bs.setNamespaceName2(s.getName());
+							bs.setNamespaceId2(s.getId());
+						}
+					} else {
+						Species s = matches.get(0);
+						bs.setNamespaceName2(s.getName());
+						bs.setNamespaceId2(s.getId());
+						
+					}
+				}
+				mappingDomainRepository.save(bs);
+				
+				try {
+			        Thread.sleep(100); // wait 100 milliseconds between requests
+			    } catch (InterruptedException e) {
+			        Thread.currentThread().interrupt(); // restore interrupted status
+			    }
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		
+		List<MappingF> allF = mappingFRepository.findAll();
+		for (MappingF bs: allF) {
+			try {
+				List<Species> matches = util.getSpecies(bs.getName(), true);
+				if (!matches.isEmpty()) {
+					if (matches.size() > 1) {
+						// check the number of matches with "family" rank
+						List<Species> rankMatches = new ArrayList<>();
+						for (Species m: matches) {
+							if (m.getRank() != null && m.getRank().equalsIgnoreCase("family")) {
+								rankMatches.add(m);
+							}
+						}
+						if (rankMatches.size() == 1) {
+							Species s = rankMatches.get(0);
+							bs.setNamespaceName2(s.getName());
+							bs.setNamespaceId2(s.getId());
+						}
+					} else {
+						Species s = matches.get(0);
+						bs.setNamespaceName2(s.getName());
+						bs.setNamespaceId2(s.getId());
+						
+					}
+				}
+				mappingFRepository.save(bs);
+				
+				try {
+			        Thread.sleep(100); // wait 100 milliseconds between requests
+			    } catch (InterruptedException e) {
+			        Thread.currentThread().interrupt(); // restore interrupted status
+			    }
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		
+		List<MappingGS> allGS = mappingGSRepository.findAll();
+		for (MappingGS bs: allGS) {
+			try {
+				List<Species> matches = util.getSpecies(bs.getName(), true);
+				if (!matches.isEmpty()) {
+					if (matches.size() > 1) {
+						logger.info("multiple matches for " + bs.getName());
+					} else {
+						Species s = matches.get(0);
+						bs.setNamespaceName2(s.getName());
+						bs.setNamespaceId2(s.getId());
+						
+					}
+				}
+				mappingGSRepository.save(bs);
+				
+				
+				try {
+			        Thread.sleep(100); // wait 100 milliseconds between requests
+			    } catch (InterruptedException e) {
+			        Thread.currentThread().interrupt(); // restore interrupted status
+			    }
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		
+		List<MappingK> allK = mappingKRepository.findAll();
+		for (MappingK bs: allK) {
+			try {
+				List<Species> matches = util.getSpecies(bs.getName(), true);
+				if (!matches.isEmpty()) {
+					if (matches.size() > 1) {
+						// check the number of matches with "kingdom" rank
+						List<Species> rankMatches = new ArrayList<>();
+						for (Species m: matches) {
+							if (m.getRank() != null && m.getRank().equalsIgnoreCase("kingdom")) {
+								rankMatches.add(m);
+							}
+						}
+						if (rankMatches.size() == 1) {
+							Species s = rankMatches.get(0);
+							bs.setNamespaceName2(s.getName());
+							bs.setNamespaceId2(s.getId());
+						}
+					} else {
+						Species s = matches.get(0);
+						bs.setNamespaceName2(s.getName());
+						bs.setNamespaceId2(s.getId());
+						
+					}
+				}
+				mappingKRepository.save(bs);
+				
+				try {
+			        Thread.sleep(100); // wait 100 milliseconds between requests
+			    } catch (InterruptedException e) {
+			        Thread.currentThread().interrupt(); // restore interrupted status
+			    }
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		
+		List<MappingO> allO = mappingORepository.findAll();
+		for (MappingO bs: allO) {
+			try {
+				List<Species> matches = util.getSpecies(bs.getName(), true);
+				if (!matches.isEmpty()) {
+					if (matches.size() > 1) {
+						logger.info("multiple matches for " + bs.getName());
+					} else {
+						Species s = matches.get(0);
+						bs.setNamespaceName2(s.getName());
+						bs.setNamespaceId2(s.getId());
+					}
+				}
+				mappingORepository.save(bs);
+				
+				try {
+			        Thread.sleep(100); // wait 100 milliseconds between requests
+			    } catch (InterruptedException e) {
+			        Thread.currentThread().interrupt(); // restore interrupted status
+			    }
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		
+		List<MappingP_D> allpd = mappingP_DRepository.findAll();
+		for (MappingP_D bs: allpd) {
+			try {
+				List<Species> matches = util.getSpecies(bs.getName(), true);
+				if (!matches.isEmpty()) {
+					if (matches.size() > 1) {
+						// check the number of matches with "phylum" rank
+						List<Species> rankMatches = new ArrayList<>();
+						for (Species m: matches) {
+							if (m.getRank() != null && m.getRank().equalsIgnoreCase("phylum")) {
+								rankMatches.add(m);
+							}
+						}
+						if (rankMatches.size() == 1) {
+							Species s = rankMatches.get(0);
+							bs.setNamespaceName2(s.getName());
+							bs.setNamespaceId2(s.getId());
+						}
+					} else {
+						Species s = matches.get(0);
+						bs.setNamespaceName2(s.getName());
+						bs.setNamespaceId2(s.getId());
+					}
+				}
+				mappingP_DRepository.save(bs);
+				
+				try {
+			        Thread.sleep(100); // wait 100 milliseconds between requests
+			    } catch (InterruptedException e) {
+			        Thread.currentThread().interrupt(); // restore interrupted status
+			    }
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		
+		List<MappingST> allst = mappingSTRepository.findAll();
+		for (MappingST bs: allst) {
+			try {
+				List<Species> matches = util.getSpecies(bs.getName());
+				if (!matches.isEmpty()) {
+					if (matches.size() > 1) {
+						logger.info("multiple matches for " + bs.getName());
+					} else {
+						Species s = matches.get(0);
+						bs.setNamespaceName2(s.getName());
+						bs.setNamespaceId2(s.getId());
+						
+					}
+				}
+				mappingSTRepository.save(bs);
+				
+				try {
+			        Thread.sleep(100); // wait 100 milliseconds between requests
+			    } catch (InterruptedException e) {
+			        Thread.currentThread().interrupt(); // restore interrupted status
+			    }
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		
+	}
+	
 	public void addBSInformation () {
 		PubmedUtil util = new PubmedUtil(apiKey);
 		
@@ -2112,13 +2450,13 @@ public class CarbbankService {
 		String[] header = {"ID", "count", "name", "namespacename", "namespaceid", "mappingname", "rank", "matchCount"};
 		rows.add(header);
 		for (MappingGS m: allSpecies) {
-			if (m.getNamespaceName() != null) {
+			if (m.getNamespaceName2() != null) {
 				String[] row = new String[8];
 				row[0] = m.getId()+"";
 				row[1] = m.getCount()+ "";
 				row[2] = m.getName();
-				row[3] = m.getNamespaceName();
-				row[4] = m.getNamespaceId();
+				row[3] = m.getNamespaceName2();
+				row[4] = m.getNamespaceId2();
 				row[5] = m.getMappingName();
 				row[6] = m.getRank();
 				row[7] = m.getMatchCount() + "";

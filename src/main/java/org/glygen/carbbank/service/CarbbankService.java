@@ -2444,7 +2444,7 @@ public class CarbbankService {
 	}
 	
 	public void generateMappedExcel () {
-		// Scientific Name Mappings
+		// Scientific Name Mappings from GS field
 		List<String[]> rows = new ArrayList<>();
 		List<MappingGS> allSpecies = mappingGSRepository.findAll();
 		String[] header = {"ID", "count", "name", "namespacename", "namespaceid", "mappingname", "rank", "matchCount"};
@@ -2470,6 +2470,146 @@ public class CarbbankService {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+		
+		// Scientific Name Mappings from CN field
+		rows = new ArrayList<>();
+		List<MappingCN> allSpecies2 = mappingCNRepository.findAll();
+		rows.add(header);
+		for (MappingCN m: allSpecies2) {
+			if (m.getNamespaceName2() != null) {
+				String[] row = new String[8];
+				row[0] = m.getId()+"";
+				row[1] = m.getCount()+ "";
+				row[2] = m.getName();
+				row[3] = m.getNamespaceName2();
+				row[4] = m.getNamespaceId2();
+				row[5] = m.getMappingName();
+				row[6] = m.getRank();
+				row[7] = m.getMatchCount() + "";
+				rows.add(row);
+			}
+		}
+		
+		try {
+			writeToExcel (rows, "Mappings", "mapping_BS_CN-mapped.xlsx", null, "Records", null);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		// disease mappings
+		rows = new ArrayList<>();
+		List<MappingDisease> allDiseases = mappingDiseaseRepository.findAll();
+		
+		rows.add(header);
+		for (MappingDisease m: allDiseases) {
+			if (m.getNamespaceName() != null) {
+				String[] row = new String[8];
+				row[0] = m.getId()+"";
+				row[1] = m.getCount()+ "";
+				row[2] = m.getName();
+				row[3] = m.getNamespaceName();
+				row[4] = m.getNamespaceId();
+				row[5] = m.getMappingName();
+				row[6] = "";
+				row[7] = m.getMatchCount() + "";
+				rows.add(row);
+			}
+		}
+		
+		try {
+			writeToExcel (rows, "Mappings", "mapping_BS_Disease-mapped.xlsx", null, "Records", null);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		// tissue mappings
+		Map<Long, List<String>> recordMap = new HashMap<>();
+		Map<String, String> speciesMap = new HashMap<>();
+		rows = new ArrayList<>();
+		List<MappingOT> allTissues = mappingOTRepository.findAll();
+		
+		rows.add(header);
+		for (MappingOT m: allTissues) {
+			if (m.getNamespaceName() != null) {
+				String[] row = new String[8];
+				row[0] = m.getId()+"";
+				row[1] = m.getCount()+ "";
+				row[2] = m.getName();
+				row[3] = m.getNamespaceName();
+				row[4] = m.getNamespaceId();
+				row[5] = m.getMappingName();
+				row[6] = "";
+				row[7] = m.getMatchCount() + "";
+				rows.add(row);
+				
+				// find records with this value
+				List<BS> bsList = bsRepository.findByOtIgnoreCase(m.getName());
+				Set<String> recordList = new HashSet<>();
+				if (bsList.isEmpty()) {
+					// contains query
+					bsList = bsRepository.findByOtContainingIgnoreCase(m.getName());
+				}
+				for (BS bs: bsList) {
+					String cc = bs.getRecord().getCC();
+					if (cc != null && cc.contains(":")) {
+						cc = cc.substring(cc.indexOf(":") + 1);
+					}
+					if (bs.getGs() != null) {
+						List<MappingGS> species = mappingGSRepository.findByNameEqualsIgnoreCase(bs.getGs());
+						if (!species.isEmpty()) {
+							for (MappingGS s: species) {
+								if (s.getNamespaceId2() != null) {
+									speciesMap.put(cc, s.getNamespaceId2());
+									break;
+								}
+							}
+						}
+					} 
+					if (speciesMap.get(cc) == null) {
+						if (bs.getCn() != null) {
+							List<MappingCN> species = mappingCNRepository.findByNameEqualsIgnoreCase(bs.getCn());
+							if (!species.isEmpty()) {
+								for (MappingCN s: species) {
+									if (s.getNamespaceId2() != null) {
+										speciesMap.put(cc, s.getNamespaceId2());
+										break;
+									}
+								}
+							}
+						}
+					}
+					recordList.add(cc);
+				}
+				recordMap.put(m.getId(), new ArrayList<>(recordList));
+				rows.add(row);
+			}
+		}
+		
+		
+		List<String[]> recordRows = new ArrayList<>();
+		String[] rHeader = {"ID", "CC Number", "Taxonomy ID"};
+		recordRows.add(rHeader);
+		for (Long id: recordMap.keySet()) {
+			List<String> records = recordMap.get(id);
+			for (String cc: records) {
+				String[] row = new String[3];
+				row[0] = id+"";
+				row[1] = cc;
+				if (speciesMap.get(cc) != null) {
+					row[2] = speciesMap.get(cc);
+				}
+				recordRows.add(row);
+			}
+		}
+		
+		try {
+			writeToExcel (rows, "Mappings", "mapping_BS_Tissue-mapped.xlsx", recordRows, "Records", null);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 	
 	public void generateExcelFiles () {
@@ -2481,7 +2621,7 @@ public class CarbbankService {
 		String[] header = {"ID", "count", "name", "namespacename", "namespaceid", "mappingname", "rank", "matchCount"};
 		rows.add(header);
 		for (MappingCN m: allRows) {
-			if (m.getNamespaceName() == null && (m.getInProgress() == null || !m.getInProgress())) {
+			if (m.getNamespaceName2() == null && (m.getInProgress() == null || !m.getInProgress())) {
 				String[] row = new String[8];
 				row[0] = m.getId()+"";
 				row[1] = m.getCount()+ "";
@@ -2530,7 +2670,7 @@ public class CarbbankService {
 		List<MappingGS> allGS = mappingGSRepository.findAll();
 		rows.add(header);
 		for (MappingGS m: allGS) {
-			if (m.getNamespaceName() == null && (m.getInProgress() == null || !m.getInProgress())) {
+			if (m.getNamespaceName2() == null && (m.getInProgress() == null || !m.getInProgress())) {
 				String[] row = new String[8];
 				row[0] = m.getId()+"";
 				row[1] = m.getCount()+ "";
